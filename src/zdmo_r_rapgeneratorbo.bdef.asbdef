@@ -77,6 +77,8 @@ authorization master ( global )
   }
 
   association _RAPGeneratorBONode { create; with draft; }
+  association _RAPGeneratorBOLog { create; with draft; }
+
 
   determination SetNameSpace on modify { field PackageName; }
   determination SetObjectNames on modify { field Namespace, Suffix, Prefix, BindingType, ImplementationType, DraftEnabled, DataSourceType; }
@@ -179,5 +181,42 @@ authorization dependent by _RAPGeneratorBO
 
   internal action SetRepoObjectNames;
   internal action SetRepoFieldNames;
+
+}
+
+
+define behavior for ZDMO_R_RapGeneratorBOLog alias RAPGeneratorBOLog
+implementation in class ZDMO_BP_R_RAPGeneratorBOLog unique
+persistent table zdmo_rapgen_log
+draft table zdmo_rapgenlg00d
+etag master LocalLastChangedAt
+lock dependent by _RAPGeneratorBO
+authorization dependent by _RAPGeneratorBO
+
+
+{
+
+  field ( numbering : managed )
+  LogUuid;
+  field ( readonly ) RapboUuid, LocalLastChangedAt;
+
+  update;
+  delete;
+
+  mapping for ZDMO_RAPGEN_Log
+  {
+    DetailLevel = detail_level;
+    LocalLastChangedAt = local_last_changed_at;
+    LogItemNumber = log_item_number;
+    LogUuid = log_uuid;
+    RapboUuid = rapbo_uuid;
+    Severity = severity;
+    Text = text;
+    TimeStamp = time_stamp;
+  }
+
+  determination CalculateLogItemNumber on save { create; }
+
+  association _RAPGeneratorBO { with draft; }
 
 }

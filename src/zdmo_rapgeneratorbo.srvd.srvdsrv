@@ -10,4 +10,5 @@ define service ZDMO_RAPGENERATORBO {
   expose ZDMO_I_RAP_GENERATOR_PACKAGE as Packages;
   expose ZDMO_I_RAP_GENERATOR_FIELDS as DataSourceFields;
   expose ZDMO_I_RAP_GENERATOR_appl_log as ApplicationLog;
+  expose ZDMO_C_RAPGeneratorBOLog as ApplicationLog2;
 }

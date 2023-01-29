@@ -68,9 +68,10 @@ define root view entity ZDMO_C_RAPGENERATORBO
            @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
   virtual  JobStatusCriticality : abap.int1,
 
+           _RAPGeneratorBOLog  : redirected to composition child ZDMO_C_RAPGeneratorBOLog,
            _RAPGeneratorBONode : redirected to composition child ZDMO_C_RAPGENERATORBONODE,
            _ApplicationLog
-           
+
 
 
 }

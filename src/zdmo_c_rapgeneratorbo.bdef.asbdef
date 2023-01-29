@@ -29,3 +29,13 @@ use etag
   use action addChild2;
   use association _RAPGeneratorBO { with draft; }
 }
+
+
+define behavior for ZDMO_C_RAPGENERATORBOLOG alias RAPGeneratorBOLog
+use etag
+{
+  use update;
+  use delete;
+
+  use association _RAPGeneratorBO { with draft; }
+}
