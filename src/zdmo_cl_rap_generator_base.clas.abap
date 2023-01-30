@@ -39,11 +39,12 @@ CLASS zdmo_cl_rap_generator_base DEFINITION ABSTRACT
 *                                            i_skip_activation TYPE abap_boolean OPTIONAL
 *                                  RETURNING VALUE(r_result)   TYPE REF TO if_xco_gen_o_put_result.
   PRIVATE SECTION.
+
 ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_GENERATOR_BASE IMPLEMENTATION.
+CLASS zdmo_cl_rap_generator_base IMPLEMENTATION.
 
 
   METHOD cds_i_view_set_provider_cntrct.
@@ -91,3 +92,5 @@ CLASS ZDMO_CL_RAP_GENERATOR_BASE IMPLEMENTATION.
     r_result =  i_put_operation->execute( ).
   ENDMETHOD.
 ENDCLASS.
+
+

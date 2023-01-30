@@ -17,8 +17,8 @@ CLASS lhc_RAPGeneratorBOLog IMPLEMENTATION.
     " is returned only once.
 
     READ ENTITIES OF ZDMO_R_RapGeneratorBO IN LOCAL MODE
-      ENTITY RAPGeneratorBO by \_RAPGeneratorBOLog
-        FIELDS ( LogItemNumber )
+      ENTITY RAPGeneratorBOLog by \_RAPGeneratorBO
+        FIELDS ( RapNodeUUID )
         WITH CORRESPONDING #( keys )
       RESULT DATA(rapbos).
 
@@ -44,7 +44,7 @@ CLASS lhc_RAPGeneratorBOLog IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
 
-      "Provide a booking ID for all bookings of this travel that have none.
+      "Provide a log item number for all log entries of this rap bo that have none.
       LOOP AT log_entries INTO log_entry WHERE LogItemNumber IS INITIAL.
         max_log_item_number += 1.
         APPEND VALUE #( %tky      = log_entry-%tky
@@ -54,7 +54,7 @@ CLASS lhc_RAPGeneratorBOLog IMPLEMENTATION.
       ENDLOOP.
     ENDLOOP.
 
-    " Provide a booking ID for all bookings that have none.
+    " Provide a log item number for all log entries that have none.
     MODIFY ENTITIES OF ZDMO_R_RapGeneratorBO
       ENTITY RAPGeneratorBOLog
         UPDATE FIELDS ( LogItemNumber )

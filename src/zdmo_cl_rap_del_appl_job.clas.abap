@@ -12,6 +12,15 @@ INHERITING FROM zdmo_cl_rap_generator_base
   PROTECTED SECTION.
   PRIVATE SECTION.
 
+    TYPES : BEGIN OF t_log_entry,
+              DetailLevel TYPE ballevel,
+              Severity    TYPE symsgty,
+              Text        TYPE  bapi_msg,
+              TimeStamp   TYPE timestamp,
+            END OF t_log_entry.
+    TYPES : t_log_entries TYPE STANDARD TABLE OF t_log_entry.
+
+
 **********************************************************************
     DATA delete_objects_in_package TYPE sxco_package.
     DATA demo_mode TYPE abap_boolean VALUE abap_false.
@@ -19,7 +28,8 @@ INHERITING FROM zdmo_cl_rap_generator_base
 
     DATA on_prem_xco_lib TYPE REF TO zdmo_cl_rap_xco_lib.
 
-    DATA test_bo_name TYPE zdmo_r_rapgeneratorbo-BoName VALUE 'ZR_SalesOrderTP_AF2'.
+    DATA test_bo_name TYPE zdmo_r_rapgeneratorbo-BoName VALUE 'ZR_SalesOrderTP_LOG3'.
+    DATA rap_bo_name TYPE zdmo_r_rapgeneratorbo-BoName.
     DATA perform_srvb_is_active_check TYPE abap_bool VALUE abap_false.
 
     "run in background Y/N?
@@ -36,6 +46,11 @@ INHERITING FROM zdmo_cl_rap_generator_base
 
     DATA out TYPE REF TO if_oo_adt_classrun_out.
     DATA application_log TYPE REF TO if_bali_log .
+
+    METHODS add_log_entries_for_rap_bo IMPORTING i_rap_bo_name    TYPE sxco_cds_object_name OPTIONAL
+                                                 i_log_entries    TYPE t_log_entries
+                                       RETURNING VALUE(r_success) TYPE abap_boolean.
+
     METHODS generated_objects_are_deleted
       IMPORTING
 *               i_rap_bo_name                      TYPE sxco_ar_object_name
@@ -47,7 +62,9 @@ INHERITING FROM zdmo_cl_rap_generator_base
       IMPORTING !ix_exception  TYPE REF TO cx_root
       RETURNING VALUE(rx_root) TYPE REF TO cx_root .
     METHODS add_findings_to_output
-      IMPORTING i_findings TYPE REF TO if_xco_gen_o_findings
+      IMPORTING i_task_name      TYPE bapi_msg
+                i_findings       TYPE REF TO if_xco_gen_o_findings
+      RETURNING VALUE(r_success) TYPE abap_bool
       RAISING   cx_bali_runtime .
     METHODS add_text_to_app_log_or_console
       IMPORTING i_text     TYPE cl_bali_free_text_setter=>ty_text
@@ -115,12 +132,16 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
+CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
 
   METHOD add_findings_to_output.
+
     DATA text TYPE c LENGTH 200 .
     DATA(finding_texts) = i_findings->get( ).
+
+**********************************************************************
+
     IF finding_texts IS NOT INITIAL.
       LOOP AT finding_texts INTO DATA(finding_text).
         text = |{ finding_text->object_type } { finding_text->object_name } { finding_text->message->get_text(  ) }|.
@@ -130,20 +151,135 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ).
       ENDLOOP.
     ENDIF.
+
+**********************************************************************
+
+
+    DATA log_entry TYPE t_log_entry.
+    DATA log_entries TYPE t_log_entries.
+
+    log_entry-text = i_task_name.
+    log_entry-detaillevel = 1.
+    log_entry-severity = 'S'.
+
+    IF i_findings->contain_warnings(  ).
+      log_entry-severity = 'W'.
+    ENDIF.
+
+    IF i_findings->contain_errors(  ).
+      log_entry-severity = 'E'.
+    ENDIF.
+
+    APPEND log_entry TO log_entries.
+
+    finding_texts = i_findings->get( ).
+
+    IF finding_texts IS NOT INITIAL.
+      LOOP AT finding_texts INTO finding_text.
+        log_entry-text = |{ finding_text->object_type } { finding_text->object_name } { finding_text->message->get_text(  ) }|.
+        log_entry-severity = finding_text->message->value-msgty.
+        log_entry-detaillevel = 2.
+        APPEND log_entry TO log_entries.
+      ENDLOOP.
+    ENDIF.
+
+    r_success = add_log_entries_for_rap_bo(
+           i_rap_bo_name = CONV #( rap_bo_name )
+           i_log_entries = log_entries
+         ).
+
+
+
+
   ENDMETHOD.
 
+  METHOD add_log_entries_for_rap_bo.
+
+    DATA create_rapbolog_cba TYPE TABLE FOR CREATE ZDMO_R_RapGeneratorBO\_RAPGeneratorBOLog.
+    DATA log_entries TYPE TABLE FOR CREATE zdmo_r_rapgeneratorbo\\rapgeneratorbolog   .
+    DATA log_entry TYPE STRUCTURE FOR CREATE zdmo_r_rapgeneratorbo\\rapgeneratorbolog   .
+    DATA n TYPE i.
+    DATA time_stamp TYPE timestampl.
+
+    GET TIME STAMP FIELD time_stamp.
+
+    SELECT SINGLE * FROM zdmo_r_rapgeneratorbo  WHERE boname = @rap_bo_name
+          INTO @DATA(rap_generator_bo).
+
+    CHECK sy-subrc = 0.
+
+    LOOP AT i_log_entries INTO DATA(my_log_entry).
+      n += 1.
+      log_entry = VALUE #(     %is_draft = if_abap_behv=>mk-off
+                               %cid      = |test{ n }|
+                               Severity = my_log_entry-Severity
+                               DetailLevel = my_log_entry-DetailLevel
+                               Text = my_log_entry-Text
+                               TimeStamp = time_stamp
+                               ).
+      APPEND log_entry TO log_entries.
+    ENDLOOP.
+
+    create_rapbolog_cba = VALUE #( ( %is_draft = if_abap_behv=>mk-off
+                                     %key-rapnodeuuid = rap_generator_bo-RapNodeUUID
+                                     %target   = log_entries ) ) .
+
+    MODIFY ENTITIES OF zdmo_r_rapgeneratorbo
+             ENTITY RAPGeneratorBO
+                   CREATE BY \_RAPGeneratorBOLog
+                   FIELDS (
+                           LogItemNumber
+                           DetailLevel
+                           Severity
+                           Text
+                           TimeStamp
+                   )
+                   WITH create_rapbolog_cba
+             MAPPED   DATA(mapped)
+             FAILED   DATA(failed)
+             REPORTED DATA(reported).
+
+
+    IF mapped-rapgeneratorbolog IS NOT INITIAL.
+      COMMIT ENTITIES.
+      COMMIT WORK.
+      r_success = abap_true.
+    ENDIF.
+    IF failed-rapgeneratorbolog IS NOT INITIAL.
+      r_success = abap_false.
+    ENDIF.
+
+  ENDMETHOD.
 
   METHOD add_text_to_app_log_or_console.
 
-    DATA(application_log_free_text) = cl_bali_free_text_setter=>create(
-      severity = i_severity " if_bali_constants=>c_severity_status
-      text     = i_text ).
-    application_log_free_text->set_detail_level( detail_level = '1' ).
-    application_log->add_item( item = application_log_free_text ).
-    cl_bali_log_db=>get_instance( )->save_log(
-                                               log = application_log
-                                               assign_to_current_appl_job = abap_true
-                                               ).
+    DATA log_entry TYPE t_log_entry.
+    DATA log_entries TYPE t_log_entries.
+
+    log_entry-text = i_text.
+    log_entry-detaillevel = 1.
+    log_entry-severity = i_severity.
+    APPEND log_entry TO log_entries.
+
+    IF rap_bo_name IS NOT INITIAL.
+      add_log_entries_for_rap_bo(
+             i_rap_bo_name = CONV #( rap_bo_name )
+             i_log_entries = log_entries
+           ).
+    ENDIF.
+
+*    DATA(application_log_free_text) = cl_bali_free_text_setter=>create(
+*      severity = i_severity " if_bali_constants=>c_severity_status
+*      text     = i_text ).
+*    application_log_free_text->set_detail_level( detail_level = '1' ).
+*    application_log->add_item( item = application_log_free_text ).
+*    cl_bali_log_db=>get_instance( )->save_log(
+*                                               log = application_log
+*                                               assign_to_current_appl_job = abap_true
+*                                               ).
+
+
+
 *    ELSE.
     IF sy-batch = abap_false.
       out->write( |{ i_severity }:{ i_text }| ).
@@ -194,6 +330,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_behavior_definitions.
+    DATA task_name TYPE bapi_msg VALUE 'delete behavior definitions'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r.
     DATA object_name TYPE sxco_cds_object_name.
@@ -230,14 +367,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -253,6 +398,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_cds_views.
+    DATA task_name TYPE bapi_msg VALUE 'delete cds views'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>node_object_types-cds_view_r.
     DATA object_name TYPE sxco_cds_object_name.
@@ -289,14 +435,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -312,6 +466,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_classes.
+    DATA task_name TYPE bapi_msg VALUE 'delete classes'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>node_object_types-behavior_implementation.
     DATA object_name TYPE sxco_ad_object_name.
@@ -348,14 +503,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -371,6 +534,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_draft_tables.
+    DATA task_name TYPE bapi_msg VALUE 'delete draft tables'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>node_object_types-draft_table.
     DATA object_name TYPE sxco_dbt_object_name .
@@ -408,14 +572,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -549,6 +721,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_metadata_extensions.
+    DATA task_name TYPE bapi_msg VALUE 'metadata extensions'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>node_object_types-meta_data_extension.
     DATA object_name TYPE sxco_cds_object_name.
@@ -585,14 +758,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -693,6 +874,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_service_bindings.
+    DATA task_name TYPE bapi_msg VALUE 'service bindings'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>root_node_object_types-service_binding.
     DATA object_name TYPE sxco_srvb_object_name.
@@ -729,14 +911,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -752,6 +942,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_service_definitions.
+    DATA task_name TYPE bapi_msg VALUE 'service definitions'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>root_node_object_types-service_definition.
     DATA object_name TYPE sxco_srvd_object_name.
@@ -788,14 +979,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -811,6 +1010,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD delete_structures.
+    DATA task_name TYPE bapi_msg VALUE 'structures'.
     "begin change
     DATA object_type TYPE if_xco_gen_o_finding=>tv_object_type VALUE zdmo_cl_rap_node=>node_object_types-control_structure.
     DATA object_name TYPE sxco_ad_object_name .
@@ -847,14 +1047,22 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
         ENDIF.
         IF delete_operation_result->findings->get(  ) IS NOT INITIAL.
           add_text_to_app_log_or_console( |Findings.| ).
-          add_findings_to_output( delete_operation_result->findings ).
+          add_findings_to_output(
+            i_task_name = task_name
+            i_findings  = delete_operation_result->findings
+          ).
+*          CATCH cx_bali_runtime.( delete_operation_result->findings ).
         ENDIF.
       CATCH cx_xco_gen_delete_exception INTO DATA(xco_delete_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
           i_severity = if_bali_constants=>c_severity_error
         ).
-        add_findings_to_output( xco_delete_exception->findings ).
+        add_findings_to_output(
+          i_task_name = task_name
+          i_findings  = xco_delete_exception->findings
+        ).
+*        CATCH cx_bali_runtime.( xco_delete_exception->findings ).
       CATCH cx_root INTO DATA(srvb_deletion_exception).
         add_text_to_app_log_or_console(
           i_text     = |Delete operation - Exception occured.|
@@ -1182,6 +1390,7 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
                 IF sy-subrc = 0.
                   save_log_handle( rap_generator_bo-BoName ).
+                  rap_bo_name = rap_generator_bo-BoName.
                 ELSE.
                   add_text_to_app_log_or_console(
                     i_text     = |BO name { ls_parameter-low } not found in ZDMO_r_rapgeneratorbo |
@@ -1308,7 +1517,9 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
     CLEAR delete_objects_in_package.
     demo_mode = abap_false.
-    delete_objects_in_package = 'TEST_RAP100_AF1'.
+
+
+*    delete_objects_in_package = 'TEST_RAP100_AF1'.
 
     IF delete_objects_in_package IS NOT INITIAL.
 

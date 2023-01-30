@@ -1,0 +1,104 @@
+@Metadata.layer: #CUSTOMER
+@UI: {
+  headerInfo: {
+    typeName: 'LogItemNumber',
+    typeNamePlural: 'LogItemNumbers'
+    ,
+    title: {
+      type: #STANDARD,
+      label: 'Log Item Number',
+      value: 'LogItemNumber'
+    }
+  },
+  presentationVariant: [ {
+    sortOrder: [
+    {
+      by: 'LogItemNumber',
+      direction: #ASC
+    }],
+    visualizations: [ {
+      type: #AS_LINEITEM
+    } ]
+  } ]
+}
+
+annotate view ZDMO_C_RAPGeneratorBOLog with
+{
+  @UI.hidden: true
+  LogUuid;
+  @UI.hidden: true
+  RapboUuid;
+  @UI.lineItem    : [ {
+    position        : 10 ,
+    importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+     } ]
+  @UI.identification: [ {
+  position        : 10 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+     } ]
+  //      @EndUserText.label: 'Logitemnumber'
+  @UI.selectionField: [ { position: 20 } ]
+  LogItemNumber;
+  @UI.lineItem    : [ {
+  position        : 20 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  @UI.identification: [ {
+  position        : 20 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  DetailLevel;
+  @UI.lineItem    : [ {
+     position        : 30 ,
+     importance      : #HIGH,
+     criticality: 'Criticality'
+  //      ,
+  //      label           : 'Log item number'
+      } ]
+  @UI.identification: [ {
+  position        : 30 ,
+  importance      : #HIGH,
+  criticality: 'Criticality'
+  //      ,
+  //      label           : 'Log item number'
+      } ]
+  Severity;
+  @UI.lineItem    : [ {
+  position        : 60 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  @UI.identification: [ {
+  position        : 60 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  Text;
+  @UI.lineItem    : [ {
+  position        : 70 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  @UI.identification: [ {
+  position        : 70 ,
+  importance      : #HIGH
+  //      ,
+  //      label           : 'Log item number'
+   } ]
+  TimeStamp;
+  @UI.hidden: true
+  LocalLastChangedAt;
+
+
+}

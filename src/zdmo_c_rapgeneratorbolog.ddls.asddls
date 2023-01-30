@@ -15,6 +15,7 @@ define view entity ZDMO_C_RAPGeneratorBOLog
       LogItemNumber,
       DetailLevel,
       Severity,
+      Criticality,
       @Search.defaultSearchElement: true
       @Search.fuzzinessThreshold: 0.90
       Text,

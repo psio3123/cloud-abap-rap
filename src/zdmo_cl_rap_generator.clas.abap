@@ -131,7 +131,13 @@ INHERITING FROM zdmo_cl_rap_generator_base
 
     TYPES : aliases TYPE STANDARD TABLE OF sxco_ddef_alias_name.
 
-
+    TYPES : BEGIN OF t_log_entry,
+              DetailLevel TYPE ballevel,
+              Severity    TYPE symsgty,
+              Text        TYPE  bapi_msg,
+              TimeStamp   TYPE timestamp,
+            END OF t_log_entry.
+    TYPES : t_log_entries TYPE STANDARD TABLE OF t_log_entry.
 
     DATA xco_api  TYPE REF TO ZDMO_cl_rap_xco_lib  .
 
@@ -173,6 +179,12 @@ INHERITING FROM zdmo_cl_rap_generator_base
 *                xco_lib      TYPE REF TO ZDMO_cl_rap_xco_lib OPTIONAL
 *      RAISING   ZDMO_cx_rap_generator.
 
+
+
+
+    METHODS add_log_entries_for_rap_bo IMPORTING i_rap_bo_name    TYPE sxco_cds_object_name
+                                                 i_log_entries    TYPE t_log_entries
+                                       RETURNING VALUE(r_success) TYPE abap_boolean.
 
     METHODS assign_package.
 
@@ -290,15 +302,54 @@ INHERITING FROM zdmo_cl_rap_generator_base
       RAISING
         cx_mbc_api_exception.
 
-
-
+    METHODS add_findings_to_output
+      IMPORTING i_task_name      TYPE bapi_msg
+                i_findings       TYPE REF TO if_xco_gen_o_findings
+      RETURNING VALUE(r_success) TYPE abap_bool.
 
 ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
+CLASS zdmo_cl_rap_generator IMPLEMENTATION.
 
+  METHOD add_findings_to_output.
+
+    DATA text TYPE c LENGTH 200 .
+    DATA log_entry TYPE t_log_entry.
+    DATA log_entries TYPE t_log_entries.
+
+    log_entry-text = i_task_name.
+    log_entry-detaillevel = 1.
+    log_entry-severity = 'S'.
+
+    IF i_findings->contain_warnings(  ).
+      log_entry-severity = 'W'.
+    ENDIF.
+
+    IF i_findings->contain_errors(  ).
+      log_entry-severity = 'E'.
+    ENDIF.
+
+    APPEND log_entry TO log_entries.
+
+    DATA(finding_texts) = i_findings->get( ).
+
+    IF finding_texts IS NOT INITIAL.
+      LOOP AT finding_texts INTO DATA(finding_text).
+        log_entry-text = |{ finding_text->object_type } { finding_text->object_name } { finding_text->message->get_text(  ) }|.
+        log_entry-severity = finding_text->message->value-msgty.
+        log_entry-detaillevel = 2.
+        APPEND log_entry TO log_entries.
+      ENDLOOP.
+    ENDIF.
+
+    r_success = add_log_entries_for_rap_bo(
+           i_rap_bo_name = root_node->rap_root_node_objects-behavior_definition_r
+           i_log_entries = log_entries
+         ).
+
+  ENDMETHOD.
 
   METHOD add_annotation_ui_facets.
     IF io_rap_bo_node->is_virtual_root(  ) = abap_true.
@@ -3486,6 +3537,23 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
 
     DATA framework_message TYPE zdmo_cl_rap_node=>t_framework_message_fields.
 
+    DATA(rap_bo_name) = get_rap_bo_name(  ).
+
+    DATA log_entries TYPE STANDARD TABLE OF t_log_entry.
+    DATA log_entry TYPE t_log_entry.
+    DATA task_name TYPE string.
+
+    log_entry-text = |Start generating { rap_bo_name }|.
+    log_entry-detaillevel = 1.
+    log_entry-severity = 'S'.
+    APPEND log_entry TO log_entries.
+
+    add_log_entries_for_rap_bo(
+      EXPORTING
+        i_rap_bo_name = rap_bo_name
+        i_log_entries = log_entries
+    ).
+
     put_exception_occured = abap_false.
 
     "do not generate repository objects
@@ -3506,7 +3574,9 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
         IF root_node->draft_enabled = abap_true OR
            root_node->create_table = abap_true.
           "create draft tables
+
           IF root_node->draft_enabled = abap_true.
+            task_name = 'create draft tables'.
             create_table(
               EXPORTING
                 io_rap_bo_node = root_node
@@ -3522,6 +3592,7 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
           ENDIF.
           "create tables
           IF root_node->create_table = abap_true.
+            task_name = 'create tables'.
             create_table(
               EXPORTING
                 io_rap_bo_node = root_node
@@ -3561,6 +3632,11 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
           DATA(lo_findings) = lo_result->findings.
           DATA(lt_findings) = lo_findings->get( ).
 
+          add_findings_to_output(
+            i_task_name = 'Generating draft tables'
+            i_findings  = lo_findings
+          ).
+
 **********************************************************************
           "add draft structures
           "only needed for on premise systems with older release
@@ -3576,6 +3652,7 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
 
         ENDIF.
 
+        task_name = 'create entities'.
         IF root_node->generate_custom_entity(  ).
           create_custom_entity( root_node ).
           create_custom_query( root_node ).
@@ -3589,16 +3666,19 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
         ENDIF.
 
         IF root_node->transactional_behavior = abap_true.
+          task_name = 'create bdef'.
           create_bdef( root_node ).
         ENDIF.
 
         IF root_node->generate_custom_entity(  ) = abap_false AND
            root_node->transactional_behavior = abap_true.
+          task_name = 'create projection bdef'.
           create_bdef_p( root_node ).
         ENDIF.
 
 
         IF root_node->generate_bil(  ).
+          task_name = 'create BIL'.
           create_bil( root_node ).
         ENDIF.
 
@@ -3637,6 +3717,7 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
         "start to create all objects beside service binding
 
         IF root_node->skip_activation = abap_true.
+          task_name = 'Generating cds views, bdef, bil and service defintion'.
 **********************************************************************
 ** Start of deletion 2020
 **********************************************************************
@@ -3659,6 +3740,11 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
 
         lo_findings = lo_result->findings.
         lt_findings = lo_findings->get( ).
+
+        add_findings_to_output(
+          i_task_name = 'Generating cds views, bdef, bil and service defintion'
+          i_findings  = lo_findings
+        ).
 
         framework_message-message = 'Messages and warnings from ADT:'.
         framework_message-severity = 'I'.
@@ -3683,6 +3769,11 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
           "service binding needs a separate put operation
           lo_result = mo_srvb_put_operation->execute(  ).
           lo_findings = lo_result->findings.
+
+          add_findings_to_output(
+            i_task_name = 'Generate service binding'
+            i_findings  = lo_findings
+          ).
 
           DATA(lt_srvb_findings) = lo_findings->get( ).
 
@@ -3725,6 +3816,11 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
         put_exception_occured = abap_true.
         lo_findings = put_exception->findings.
         lt_findings = lo_findings->get( ).
+
+        add_findings_to_output(
+          i_task_name = 'Exception occured'
+          i_findings  = lo_findings
+        ).
 
         CLEAR framework_message.
         framework_message-message =  'PUT operation failed:'.
@@ -3840,4 +3936,61 @@ CLASS ZDMO_CL_RAP_GENERATOR IMPLEMENTATION.
     ENDTRY.
 
   ENDMETHOD.
+
+  METHOD add_log_entries_for_rap_bo.
+
+    DATA create_rapbolog_cba TYPE TABLE FOR CREATE ZDMO_R_RapGeneratorBO\_RAPGeneratorBOLog.
+    DATA log_entries TYPE TABLE FOR CREATE zdmo_r_rapgeneratorbo\\rapgeneratorbolog   .
+    DATA log_entry TYPE STRUCTURE FOR CREATE zdmo_r_rapgeneratorbo\\rapgeneratorbolog   .
+    DATA n TYPE i.
+    DATA time_stamp TYPE timestampl.
+
+    GET TIME STAMP FIELD time_stamp.
+
+    SELECT SINGLE * FROM zdmo_r_rapgeneratorbo  WHERE boname = @i_rap_bo_name
+          INTO @DATA(rap_generator_bo).
+
+    LOOP AT i_log_entries INTO DATA(my_log_entry).
+      n += 1.
+      log_entry = VALUE #(     %is_draft = if_abap_behv=>mk-off
+                               %cid      = |test{ n }|
+                               Severity = my_log_entry-Severity
+                               DetailLevel = my_log_entry-DetailLevel
+                               Text = my_log_entry-Text
+                               TimeStamp = time_stamp
+                               ).
+      APPEND log_entry TO log_entries.
+    ENDLOOP.
+
+    create_rapbolog_cba = VALUE #( ( %is_draft = if_abap_behv=>mk-off
+                                     %key-rapnodeuuid = rap_generator_bo-RapNodeUUID
+                                     %target   = log_entries ) ) .
+
+    MODIFY ENTITIES OF zdmo_r_rapgeneratorbo
+             ENTITY RAPGeneratorBO
+                   CREATE BY \_RAPGeneratorBOLog
+                   FIELDS (
+                           LogItemNumber
+                           DetailLevel
+                           Severity
+                           Text
+                           TimeStamp
+                   )
+                   WITH create_rapbolog_cba
+             MAPPED   DATA(mapped)
+             FAILED   DATA(failed)
+             REPORTED DATA(reported).
+
+
+    IF mapped-rapgeneratorbolog IS NOT INITIAL.
+      COMMIT ENTITIES.
+      COMMIT WORK.
+      r_success = abap_true.
+    ENDIF.
+    IF failed-rapgeneratorbolog IS NOT INITIAL.
+      r_success = abap_false.
+    ENDIF.
+
+  ENDMETHOD.
+
 ENDCLASS.

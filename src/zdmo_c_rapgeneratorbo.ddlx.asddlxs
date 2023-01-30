@@ -134,7 +134,7 @@ annotate view ZDMO_C_RAPGENERATORBO with
         position: 25 ,
 //        targetQualifier: 'pVariant',
   
-        targetElement: '_ApplicationLog'
+        targetElement: '_RAPGeneratorBOLog'
       }
  
 //        ,
