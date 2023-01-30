@@ -24,7 +24,9 @@ CLASS zdmo_cl_rap_xco_cloud_lib DEFINITION INHERITING FROM ZDMO_cl_rap_xco_lib
     METHODS get_structures REDEFINITION.
     METHODS get_packages REDEFINITION.
     METHODS service_binding_is_published REDEFINITION.
-    methods get_abap_obj_directory_entry REDEFINITION.
+    METHODS get_abap_obj_directory_entry REDEFINITION.
+    METHODS get_objects_in_package REDEFINITION.
+
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -35,7 +37,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_XCO_CLOUD_LIB IMPLEMENTATION.
+CLASS zdmo_cl_rap_xco_cloud_lib IMPLEMENTATION.
 
 
   METHOD get_abstract_entity.
@@ -177,13 +179,18 @@ CLASS ZDMO_CL_RAP_XCO_CLOUD_LIB IMPLEMENTATION.
       r_is_published = abap_true.
     ENDIF.
   ENDMETHOD.
-  METHOD GET_ABAP_OBJ_DIRECTORY_ENTRY.
+  METHOD get_abap_obj_directory_entry.
     SELECT SINGLE * FROM
      I_CustABAPObjDirectoryEntry "ObjDirectoryEntry
      WHERE ABAPObjectType = @i_abap_object_type
        AND ABAPObjectCategory = @i_abap_object_category
        AND ABAPObject = @i_abap_object
        INTO CORRESPONDING FIELDS OF @r_abap_object_directory_entry.
+  ENDMETHOD.
+
+  METHOD get_objects_in_package.
+    SELECT * FROM I_CustABAPObjDirectoryEntry WHERE ABAPPackage = @i_package
+                                              INTO CORRESPONDING FIELDS OF TABLE @r_objects_in_package .
   ENDMETHOD.
 
 ENDCLASS.
