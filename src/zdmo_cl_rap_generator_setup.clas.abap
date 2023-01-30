@@ -82,53 +82,53 @@ CLASS ZDMO_CL_RAP_GENERATOR_SETUP IMPLEMENTATION.
 
 
   METHOD create_application_log_entry.
-    DATA longtext      TYPE t_longtext.
-
-    CLEAR  r_application_log_object_name.
-
-    IF xco_on_prem_library->on_premise_branch_is_used(  ).
-
-      "use xco sample application log object
-      r_application_log_object_name =  'Application log object XCO_DEMO will be used'.
-
-    ELSE.
-
-      DATA(application_log_sub_objects) = VALUE if_bali_object_handler=>ty_tab_subobject(
-                                              ( subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
-                                                subobject_text = zdmo_cl_rap_node=>application_log_sub_obj1_text )
-                                             "( subobject = '' subobject_text = '' )
-                                              ).
-
-      DATA(lo_log_object) = cl_bali_object_handler=>get_instance( ).
-
-      TRY.
-          lo_log_object->create_object( EXPORTING iv_object = zdmo_cl_rap_node=>application_log_object_name
-                                                  iv_object_text = zdmo_cl_rap_node=>application_log_object_text
-                                                  it_subobjects = application_log_sub_objects
-                                                  iv_package = package_of_rap_generator->name
-                                                  iv_transport_request = transport_request ).
-
-          r_application_log_object_name = zdmo_cl_rap_node=>application_log_object_name.
-
-        CATCH cx_bali_objects INTO DATA(lx_bali_objects).
-
-          IF  NOT ( lx_bali_objects->if_t100_message~t100key-msgno = '602' AND
-                    lx_bali_objects->if_t100_message~t100key-msgid = 'BL' ).
-            "MSGID   BL  SYMSGID C   20
-            "MSGNO   602 SYMSGNO N   3
-            longtext = lx_bali_objects->get_text( ).
-            RAISE EXCEPTION NEW zdmo_cx_rap_generator( textid     = zdmo_cx_rap_generator=>job_scheduling_error
-                                                       mv_value   = CONV #( longtext-msgv1 )
-                                                       mv_value_2 = CONV #( longtext-msgv2 )
-                                                       previous   = lx_bali_objects
-                                                       ).
-
-          ELSE.
-            r_application_log_object_name = |Application log object { zdmo_cl_rap_node=>application_log_object_name } already exists|.
-          ENDIF.
-      ENDTRY.
-
-    ENDIF.
+*    DATA longtext      TYPE t_longtext.
+*
+*    CLEAR  r_application_log_object_name.
+*
+*    IF xco_on_prem_library->on_premise_branch_is_used(  ).
+*
+*      "use xco sample application log object
+*      r_application_log_object_name =  'Application log object XCO_DEMO will be used'.
+*
+*    ELSE.
+*
+*      DATA(application_log_sub_objects) = VALUE if_bali_object_handler=>ty_tab_subobject(
+*                                              ( subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
+*                                                subobject_text = zdmo_cl_rap_node=>application_log_sub_obj1_text )
+*                                             "( subobject = '' subobject_text = '' )
+*                                              ).
+*
+*      DATA(lo_log_object) = cl_bali_object_handler=>get_instance( ).
+*
+*      TRY.
+*          lo_log_object->create_object( EXPORTING iv_object = zdmo_cl_rap_node=>application_log_object_name
+*                                                  iv_object_text = zdmo_cl_rap_node=>application_log_object_text
+*                                                  it_subobjects = application_log_sub_objects
+*                                                  iv_package = package_of_rap_generator->name
+*                                                  iv_transport_request = transport_request ).
+*
+*          r_application_log_object_name = zdmo_cl_rap_node=>application_log_object_name.
+*
+*        CATCH cx_bali_objects INTO DATA(lx_bali_objects).
+*
+*          IF  NOT ( lx_bali_objects->if_t100_message~t100key-msgno = '602' AND
+*                    lx_bali_objects->if_t100_message~t100key-msgid = 'BL' ).
+*            "MSGID   BL  SYMSGID C   20
+*            "MSGNO   602 SYMSGNO N   3
+*            longtext = lx_bali_objects->get_text( ).
+*            RAISE EXCEPTION NEW zdmo_cx_rap_generator( textid     = zdmo_cx_rap_generator=>job_scheduling_error
+*                                                       mv_value   = CONV #( longtext-msgv1 )
+*                                                       mv_value_2 = CONV #( longtext-msgv2 )
+*                                                       previous   = lx_bali_objects
+*                                                       ).
+*
+*          ELSE.
+*            r_application_log_object_name = |Application log object { zdmo_cl_rap_node=>application_log_object_name } already exists|.
+*          ENDIF.
+*      ENDTRY.
+*
+*    ENDIF.
   ENDMETHOD.
 
 

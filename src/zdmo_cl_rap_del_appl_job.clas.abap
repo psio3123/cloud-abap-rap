@@ -45,7 +45,7 @@ INHERITING FROM zdmo_cl_rap_generator_base
     DATA generated_repository_object TYPE zdmo_cl_rap_generator=>t_generated_repository_object.
 
     DATA out TYPE REF TO if_oo_adt_classrun_out.
-    DATA application_log TYPE REF TO if_bali_log .
+*    DATA application_log TYPE REF TO if_bali_log .
 
     METHODS add_log_entries_for_rap_bo IMPORTING i_rap_bo_name    TYPE sxco_cds_object_name OPTIONAL
                                                  i_log_entries    TYPE t_log_entries
@@ -132,7 +132,7 @@ ENDCLASS.
 
 
 
-CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
+CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
 
 
   METHOD add_findings_to_output.
@@ -193,6 +193,7 @@ CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
   ENDMETHOD.
 
+
   METHOD add_log_entries_for_rap_bo.
 
     DATA create_rapbolog_cba TYPE TABLE FOR CREATE ZDMO_R_RapGeneratorBO\_RAPGeneratorBOLog.
@@ -251,6 +252,7 @@ CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
   ENDMETHOD.
 
+
   METHOD add_text_to_app_log_or_console.
 
     DATA log_entry TYPE t_log_entry.
@@ -303,29 +305,29 @@ CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
 
   METHOD create_application_log.
-*    DATA(on_prem_xco_lib) = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
-    TRY.
-        IF on_prem_xco_lib->on_premise_branch_is_used(  ).
-          application_log = cl_bali_log=>create_with_header(
-                          header = cl_bali_header_setter=>create( object = 'XCO_DEMO'
-                                                                  subobject = 'DEMO'
-                                                                  external_id = 'External ID' ) )..
-        ELSE.
-          application_log = cl_bali_log=>create_with_header(
-                          header = cl_bali_header_setter=>create( object = zdmo_cl_rap_node=>application_log_object_name
-                                                                  subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
-                                                                  external_id = 'External ID' ) ).
-        ENDIF.
-
-      CATCH cx_bali_runtime INTO DATA(application_log_exception).
-
-        DATA(bali_log_exception) = application_log_exception->get_text(  ).
-
-        RAISE EXCEPTION TYPE cx_apj_rt_content
-          EXPORTING
-            previous = application_log_exception.
-
-    ENDTRY.
+**    DATA(on_prem_xco_lib) = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+*    TRY.
+*        IF on_prem_xco_lib->on_premise_branch_is_used(  ).
+*          application_log = cl_bali_log=>create_with_header(
+*                          header = cl_bali_header_setter=>create( object = 'XCO_DEMO'
+*                                                                  subobject = 'DEMO'
+*                                                                  external_id = 'External ID' ) )..
+*        ELSE.
+*          application_log = cl_bali_log=>create_with_header(
+*                          header = cl_bali_header_setter=>create( object = zdmo_cl_rap_node=>application_log_object_name
+*                                                                  subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
+*                                                                  external_id = 'External ID' ) ).
+*        ENDIF.
+*
+*      CATCH cx_bali_runtime INTO DATA(application_log_exception).
+*
+*        DATA(bali_log_exception) = application_log_exception->get_text(  ).
+*
+*        RAISE EXCEPTION TYPE cx_apj_rt_content
+*          EXPORTING
+*            previous = application_log_exception.
+*
+*    ENDTRY.
   ENDMETHOD.
 
 
@@ -1361,9 +1363,9 @@ CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
   METHOD if_apj_rt_exec_object~execute.
     DATA  exception_text  TYPE cl_bali_free_text_setter=>ty_text .
     TRY.
-        IF application_log IS INITIAL.
-          create_application_log(  ).
-        ENDIF.
+*        IF application_log IS INITIAL.
+*          create_application_log(  ).
+*        ENDIF.
 
         add_text_to_app_log_or_console( 'start method execute()' ).
 
@@ -1629,39 +1631,39 @@ CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
   METHOD save_log_handle.
 
-    CHECK application_log IS NOT INITIAL.
-
-    SELECT SINGLE * FROM zdmo_r_rapgeneratorbo  WHERE boname = @i_rap_bo_name
-    INTO @DATA(rap_generator_bo).
-
-    CHECK sy-subrc = 0.
-
-    r_log_handle = application_log->get_handle( ).
-
-    DATA update TYPE TABLE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
-    DATA update_line TYPE STRUCTURE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
-
-    update_line-RapNodeUUID = rap_generator_bo-RapNodeUUID.
-    update_line-ApplicationJobLogHandle = r_log_handle.
-    APPEND update_line TO update.
-
-    IF update IS NOT INITIAL.
-      MODIFY ENTITIES OF ZDMO_R_RapGeneratorBO
-           ENTITY RAPGeneratorBO
-             UPDATE FIELDS (
-                            ApplicationJobLogHandle
-                            RapNodeUUID
-                            ) WITH update
-          REPORTED DATA(update_reported)
-          FAILED DATA(update_failed)
-          .
-    ENDIF.
-
-    IF update IS NOT INITIAL AND update_failed IS INITIAL.
-      COMMIT ENTITIES RESPONSE OF ZDMO_R_RapGeneratorBO
-                      REPORTED DATA(commit_reported)
-                      FAILED DATA(commit_failed).
-    ENDIF.
+*    CHECK application_log IS NOT INITIAL.
+*
+*    SELECT SINGLE * FROM zdmo_r_rapgeneratorbo  WHERE boname = @i_rap_bo_name
+*    INTO @DATA(rap_generator_bo).
+*
+*    CHECK sy-subrc = 0.
+*
+*    r_log_handle = application_log->get_handle( ).
+*
+*    DATA update TYPE TABLE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
+*    DATA update_line TYPE STRUCTURE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
+*
+*    update_line-RapNodeUUID = rap_generator_bo-RapNodeUUID.
+*    update_line-ApplicationJobLogHandle = r_log_handle.
+*    APPEND update_line TO update.
+*
+*    IF update IS NOT INITIAL.
+*      MODIFY ENTITIES OF ZDMO_R_RapGeneratorBO
+*           ENTITY RAPGeneratorBO
+*             UPDATE FIELDS (
+*                            ApplicationJobLogHandle
+*                            RapNodeUUID
+*                            ) WITH update
+*          REPORTED DATA(update_reported)
+*          FAILED DATA(update_failed)
+*          .
+*    ENDIF.
+*
+*    IF update IS NOT INITIAL AND update_failed IS INITIAL.
+*      COMMIT ENTITIES RESPONSE OF ZDMO_R_RapGeneratorBO
+*                      REPORTED DATA(commit_reported)
+*                      FAILED DATA(commit_failed).
+*    ENDIF.
 
 
 

@@ -37,7 +37,17 @@ ENDCLASS.
 
 
 
-CLASS zdmo_cl_rap_xco_cloud_lib IMPLEMENTATION.
+CLASS ZDMO_CL_RAP_XCO_CLOUD_LIB IMPLEMENTATION.
+
+
+  METHOD get_abap_obj_directory_entry.
+    SELECT SINGLE * FROM
+     I_CustABAPObjDirectoryEntry "ObjDirectoryEntry
+     WHERE ABAPObjectType = @i_abap_object_type
+       AND ABAPObjectCategory = @i_abap_object_category
+       AND ABAPObject = @i_abap_object
+       INTO CORRESPONDING FIELDS OF @r_abap_object_directory_entry.
+  ENDMETHOD.
 
 
   METHOD get_abstract_entity.
@@ -77,6 +87,12 @@ CLASS zdmo_cl_rap_xco_cloud_lib IMPLEMENTATION.
 
   METHOD  get_metadata_extension.
     ro_metadata_extension  = xco_cp_abap_repository=>object->ddlx->for( iv_name  ).
+  ENDMETHOD.
+
+
+  METHOD get_objects_in_package.
+    SELECT * FROM I_CustABAPObjDirectoryEntry WHERE ABAPPackage = @i_package
+                                              INTO CORRESPONDING FIELDS OF TABLE @r_objects_in_package .
   ENDMETHOD.
 
 
@@ -179,18 +195,4 @@ CLASS zdmo_cl_rap_xco_cloud_lib IMPLEMENTATION.
       r_is_published = abap_true.
     ENDIF.
   ENDMETHOD.
-  METHOD get_abap_obj_directory_entry.
-    SELECT SINGLE * FROM
-     I_CustABAPObjDirectoryEntry "ObjDirectoryEntry
-     WHERE ABAPObjectType = @i_abap_object_type
-       AND ABAPObjectCategory = @i_abap_object_category
-       AND ABAPObject = @i_abap_object
-       INTO CORRESPONDING FIELDS OF @r_abap_object_directory_entry.
-  ENDMETHOD.
-
-  METHOD get_objects_in_package.
-    SELECT * FROM I_CustABAPObjDirectoryEntry WHERE ABAPPackage = @i_package
-                                              INTO CORRESPONDING FIELDS OF TABLE @r_objects_in_package .
-  ENDMETHOD.
-
 ENDCLASS.

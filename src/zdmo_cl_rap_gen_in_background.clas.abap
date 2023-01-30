@@ -86,28 +86,28 @@ CLASS ZDMO_CL_RAP_GEN_IN_BACKGROUND IMPLEMENTATION.
 
 
 
-    TRY.
-        IF on_prem_xco_lib->on_premise_branch_is_used(  ).
-          DATA(application_log) = cl_bali_log=>create_with_header(
-                          header = cl_bali_header_setter=>create( object = 'XCO_DEMO'
-                                                                  subobject = 'DEMO'
-                                                                  external_id = 'External ID' ) )..
-        ELSE.
-          application_log = cl_bali_log=>create_with_header(
-                          header = cl_bali_header_setter=>create( object = zdmo_cl_rap_node=>application_log_object_name
-                                                                  subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
-                                                                  external_id = 'External ID' ) ).
-        ENDIF.
-
-      CATCH cx_bali_runtime INTO DATA(application_log_exception).
-
-        DATA(bali_log_exception) = application_log_exception->get_text(  ).
-
-        RAISE EXCEPTION TYPE cx_apj_rt_content
-          EXPORTING
-            previous = application_log_exception.
-
-    ENDTRY.
+*    TRY.
+*        IF on_prem_xco_lib->on_premise_branch_is_used(  ).
+*          DATA(application_log) = cl_bali_log=>create_with_header(
+*                          header = cl_bali_header_setter=>create( object = 'XCO_DEMO'
+*                                                                  subobject = 'DEMO'
+*                                                                  external_id = 'External ID' ) )..
+*        ELSE.
+*          application_log = cl_bali_log=>create_with_header(
+*                          header = cl_bali_header_setter=>create( object = zdmo_cl_rap_node=>application_log_object_name
+*                                                                  subobject = zdmo_cl_rap_node=>application_log_sub_obj1_name
+*                                                                  external_id = 'External ID' ) ).
+*        ENDIF.
+*
+*      CATCH cx_bali_runtime INTO DATA(application_log_exception).
+*
+*        DATA(bali_log_exception) = application_log_exception->get_text(  ).
+*
+*        RAISE EXCEPTION TYPE cx_apj_rt_content
+*          EXPORTING
+*            previous = application_log_exception.
+*
+*    ENDTRY.
 
     " Getting the actual parameter values
     LOOP AT it_parameters INTO DATA(ls_parameter).
@@ -165,51 +165,51 @@ CLASS ZDMO_CL_RAP_GEN_IN_BACKGROUND IMPLEMENTATION.
 
 
 
-        APPEND |Messages from framework:| TO messages.
-        LOOP AT framework_messages INTO DATA(framework_message).
-          APPEND framework_message-message TO messages.
+*        APPEND |Messages from framework:| TO messages.
+*        LOOP AT framework_messages INTO DATA(framework_message).
+*          APPEND framework_message-message TO messages.
+*
+*          DATA(application_log_free_text) = cl_bali_free_text_setter=>create(
+*                            severity = if_bali_constants=>c_severity_status
+*                            text = CONV #( framework_message-message ) ).
+*          application_log_free_text->set_detail_level( detail_level = '1' ).
+*          application_log->add_item( item = application_log_free_text ).
+*
+*        ENDLOOP.
+*        cl_bali_log_db=>get_instance( )->save_log(
+*                                                   log = application_log
+*                                                   assign_to_current_appl_job = abap_true
+*                                                   ).
+*
+*
+*
+*        DATA(log_handle) = application_log->get_handle( ).
 
-          DATA(application_log_free_text) = cl_bali_free_text_setter=>create(
-                            severity = if_bali_constants=>c_severity_status
-                            text = CONV #( framework_message-message ) ).
-          application_log_free_text->set_detail_level( detail_level = '1' ).
-          application_log->add_item( item = application_log_free_text ).
 
-        ENDLOOP.
-        cl_bali_log_db=>get_instance( )->save_log(
-                                                   log = application_log
-                                                   assign_to_current_appl_job = abap_true
-                                                   ).
-
-
-
-        DATA(log_handle) = application_log->get_handle( ).
-
-
-        DATA update TYPE TABLE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
-        DATA update_line TYPE STRUCTURE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
-
-        update_line-RapNodeUUID = rap_generator_bo-RapNodeUUID.
-        update_line-ApplicationJobLogHandle = log_handle.
-        APPEND update_line TO update.
-
-        IF update IS NOT INITIAL.
-          MODIFY ENTITIES OF ZDMO_R_RapGeneratorBO
-               ENTITY RAPGeneratorBO
-                 UPDATE FIELDS (
-                                ApplicationJobLogHandle
-                                RapNodeUUID
-                                ) WITH update
-              REPORTED DATA(update_reported)
-              FAILED DATA(update_failed)
-              .
-        ENDIF.
-
-        IF update IS NOT INITIAL AND update_failed IS INITIAL.
-          COMMIT ENTITIES RESPONSE OF ZDMO_R_RapGeneratorBO
-                          REPORTED DATA(commit_reported)
-                          FAILED DATA(commit_failed).
-        ENDIF.
+*        DATA update TYPE TABLE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
+*        DATA update_line TYPE STRUCTURE FOR UPDATE ZDMO_R_RapGeneratorBO\\RAPGeneratorBO.
+*
+*        update_line-RapNodeUUID = rap_generator_bo-RapNodeUUID.
+*        update_line-ApplicationJobLogHandle = log_handle.
+*        APPEND update_line TO update.
+*
+*        IF update IS NOT INITIAL.
+*          MODIFY ENTITIES OF ZDMO_R_RapGeneratorBO
+*               ENTITY RAPGeneratorBO
+*                 UPDATE FIELDS (
+*                                ApplicationJobLogHandle
+*                                RapNodeUUID
+*                                ) WITH update
+*              REPORTED DATA(update_reported)
+*              FAILED DATA(update_failed)
+*              .
+*        ENDIF.
+*
+*        IF update IS NOT INITIAL AND update_failed IS INITIAL.
+*          COMMIT ENTITIES RESPONSE OF ZDMO_R_RapGeneratorBO
+*                          REPORTED DATA(commit_reported)
+*                          FAILED DATA(commit_failed).
+*        ENDIF.
 
 *        reported = CORRESPONDING #( DEEP commit_reported ).
 *        failed = CORRESPONDING #( DEEP commit_failed ).
@@ -219,14 +219,14 @@ CLASS ZDMO_CL_RAP_GEN_IN_BACKGROUND IMPLEMENTATION.
 
         DATA(rap_generator_exception_text) = rap_generator_exception->get_text(  ).
 
-        application_log->add_item( item = cl_bali_exception_setter=>create(
-                                     severity = if_bali_constants=>c_severity_error
-                                     exception = rap_generator_exception ) ).
-
-        cl_bali_log_db=>get_instance( )->save_log(
-                                                   log = application_log
-                                                   assign_to_current_appl_job = abap_true
-                                                   ).
+*        application_log->add_item( item = cl_bali_exception_setter=>create(
+*                                     severity = if_bali_constants=>c_severity_error
+*                                     exception = rap_generator_exception ) ).
+*
+*        cl_bali_log_db=>get_instance( )->save_log(
+*                                                   log = application_log
+*                                                   assign_to_current_appl_job = abap_true
+*                                                   ).
 
 
 
