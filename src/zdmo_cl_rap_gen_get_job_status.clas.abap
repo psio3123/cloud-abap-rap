@@ -11,7 +11,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_GEN_GET_JOB_STATUS IMPLEMENTATION.
+CLASS zdmo_cl_rap_gen_get_job_status IMPLEMENTATION.
 
 
   METHOD if_sadl_exit_calc_element_read~calculate.
@@ -46,14 +46,18 @@ CLASS ZDMO_CL_RAP_GEN_GET_JOB_STATUS IMPLEMENTATION.
 
             CASE jobstatus.
               WHEN 'F'. "Finished
-                <fs_original_data>-JobStatusCriticality = 3.
-                <fs_original_data>-HideADTLink = abap_false.
+                <fs_original_data>-JobStatusCriticality = 3. "green
+*                <fs_original_data>-HideADTLink = abap_false.
               WHEN 'A'. "Aborted
-                <fs_original_data>-JobStatusCriticality = 1.
+                <fs_original_data>-JobStatusCriticality = 1. "red
               WHEN 'R'. "Running
-                <fs_original_data>-JobStatusCriticality = 2.
+                <fs_original_data>-JobStatusCriticality = 2. "orange
+              WHEN 'Y'. "Ready
+                <fs_original_data>-JobStatusCriticality = 2. "orange
+              WHEN 'S'. "Scheduled
+                <fs_original_data>-JobStatusCriticality = 2. "orange
               WHEN OTHERS.
-                <fs_original_data>-JobStatusCriticality = 0.
+                <fs_original_data>-JobStatusCriticality = 0. "grey
             ENDCASE.
 
           ENDIF.
@@ -75,6 +79,19 @@ CLASS ZDMO_CL_RAP_GEN_GET_JOB_STATUS IMPLEMENTATION.
               previous = root_exception.
 
       ENDTRY.
+
+      SELECT SINGLE * FROM zdmo_r_rapgeneratorbo WHERE RapNodeUUID = @<fs_original_data>-RapNodeUUID INTO @DATA(rap_generator_project) .
+
+      DATA(check_if_objects_are_deleted) = NEW  zdmo_cl_rap_del_appl_job(  ).
+      DATA(objects_still_exist) = check_if_objects_are_deleted->rap_gen_project_objects_exist( rap_generator_project ).
+
+      <fs_original_data>-RepositoryObjectsExist = objects_still_exist.
+
+      IF objects_still_exist = abap_true.
+        <fs_original_data>-HideADTLink = abap_false.
+      ENDIF.
+
+
 
     ENDLOOP.
 
@@ -112,6 +129,9 @@ CLASS ZDMO_CL_RAP_GEN_GET_JOB_STATUS IMPLEMENTATION.
           COLLECT fieldname_jobcount INTO et_requested_orig_elements.
           COLLECT fieldname_jobname INTO et_requested_orig_elements.
         WHEN 'HIDEADTLINK'.
+          COLLECT fieldname_jobcount INTO et_requested_orig_elements.
+          COLLECT fieldname_jobname INTO et_requested_orig_elements.
+        WHEN 'REPOSITORYOBJECTSEXIST'  .
           COLLECT fieldname_jobcount INTO et_requested_orig_elements.
           COLLECT fieldname_jobname INTO et_requested_orig_elements.
         WHEN OTHERS.

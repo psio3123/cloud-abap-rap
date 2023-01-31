@@ -11,7 +11,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_GEN_CALC_JSON_ADT IMPLEMENTATION.
+CLASS zdmo_cl_rap_gen_calc_json_adt IMPLEMENTATION.
 
 
   METHOD if_sadl_exit_calc_element_read~calculate.
@@ -28,7 +28,7 @@ CLASS ZDMO_CL_RAP_GEN_CALC_JSON_ADT IMPLEMENTATION.
 
       TRY.
 
-          <fs_original_data>-HideADTLink = abap_true.
+
 
           IF <fs_original_data>-jobname IS NOT INITIAL AND <fs_original_data>-jobcount IS NOT INITIAL.
 
@@ -46,14 +46,18 @@ CLASS ZDMO_CL_RAP_GEN_CALC_JSON_ADT IMPLEMENTATION.
 
             CASE jobstatus.
               WHEN 'F'. "Finished
-                <fs_original_data>-JobStatusCriticality = 3.
+                <fs_original_data>-JobStatusCriticality = 3. "green
                 <fs_original_data>-HideADTLink = abap_false.
               WHEN 'A'. "Aborted
-                <fs_original_data>-JobStatusCriticality = 1.
+                <fs_original_data>-JobStatusCriticality = 1. "red
               WHEN 'R'. "Running
-                <fs_original_data>-JobStatusCriticality = 2.
+                <fs_original_data>-JobStatusCriticality = 2. "orange
+              WHEN 'Y'. "Ready
+                <fs_original_data>-JobStatusCriticality = 2. "orange
+              WHEN 'S'. "Scheduled
+                <fs_original_data>-JobStatusCriticality = 2. "orange
               WHEN OTHERS.
-                <fs_original_data>-JobStatusCriticality = 0.
+                <fs_original_data>-JobStatusCriticality = 0. "grey
             ENDCASE.
 
           ENDIF.
@@ -66,7 +70,7 @@ CLASS ZDMO_CL_RAP_GEN_CALC_JSON_ADT IMPLEMENTATION.
 
           <fs_original_data>-JobStatus = ''.
           <fs_original_data>-JobStatusText = exception->get_text(  ).
-          <fs_original_data>-JobStatusCriticality = 0.
+          <fs_original_data>-JobStatusCriticality = 0. "red
 
         CATCH cx_root INTO DATA(root_exception).
 
@@ -74,7 +78,21 @@ CLASS ZDMO_CL_RAP_GEN_CALC_JSON_ADT IMPLEMENTATION.
             EXPORTING
               previous = root_exception.
 
+
+
+
       ENDTRY.
+
+      SELECT SINGLE * FROM zdmo_r_rapgeneratorbo WHERE RapNodeUUID = @<fs_original_data>-RapNodeUUID INTO @DATA(rap_generator_project) .
+
+      DATA(check_if_objects_are_deleted) = NEW  zdmo_cl_rap_del_appl_job(  ).
+      DATA(objects_still_exist) = check_if_objects_are_deleted->rap_gen_project_objects_exist( rap_generator_project ).
+
+      <fs_original_data>-RepositoryObjectsExist = abap_true. "objects_still_exist.
+
+      IF objects_still_exist = abap_true.
+        <fs_original_data>-HideADTLink = abap_true.
+      ENDIF.
 
     ENDLOOP.
 

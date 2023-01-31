@@ -1037,6 +1037,12 @@ CLASS zdmo_cl_rap_node DEFINITION
       RETURNING
         VALUE(rv_repo_obj_name_is_used_in_bo) TYPE abap_bool.
 
+    METHODS repo_obj_name_used_in_rap_gen
+      IMPORTING
+        iv_type                              TYPE string
+        iv_name                              TYPE string
+      RETURNING
+        VALUE(rv_repo_obj_name_used_rap_gen) TYPE abap_bool.
 
     METHODS GET_ABAP_DDIC_FROM_Int_TYPE
       IMPORTING
@@ -1052,7 +1058,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
+CLASS zdmo_cl_rap_node IMPLEMENTATION.
 
 
   METHOD add_additional_fields.
@@ -2833,6 +2839,13 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
     DATA(repository_object_tadir_type) = 'R3TR'.
 
+    "prepare for the support of read-only services
+    IF transactional_behavior = abap_true.
+      DATA(suffix_transctional_processing) = node_object_suffix-transactional_processing.
+    ELSE.
+      suffix_transctional_processing = ''.
+    ENDIF.
+
     CASE repository_object_type.
 
         "root node repository objects
@@ -2923,9 +2936,9 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
         "root node repository objects
       WHEN root_node_repository_objects-behavior_definition_r.  "'BDEF'.
-        unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_r }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_r }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN root_node_repository_objects-behavior_definition_p.  "'BDEF'.
-        unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_p }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_p }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN root_node_repository_objects-service_binding.        "'SRVB'.
         unique_repository_object_name = |{ namespace }{ binding }{ prefix }{ entityname_abbreviated }{ protocol_version }{ suffix }|.
       WHEN   root_node_repository_objects-service_definition.   "'SRVD' .
@@ -2933,17 +2946,17 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
         "node repository objects
       WHEN  node_repository_objects-cds_view_i.                  "'DDLS' .
-        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_i }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_i }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN  node_repository_objects-cds_view_r.                  "'DDLS' .
-        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_r }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_r }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN  node_repository_objects-cds_view_p.                  "'DDLS' .
-        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_p }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_p }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN node_repository_objects-meta_data_extension.          "'DDLX'.
-        unique_repository_object_name =  |{ namespace }{ node_object_prefix-meta_data_extension }{ prefix }{ entityname_abbreviated }{ suffix }|.
+        unique_repository_object_name =  |{ namespace }{ node_object_prefix-meta_data_extension }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN node_repository_objects-behavior_implementation.      "'CLAS'.
         unique_repository_object_name =  |{ namespace }{ node_object_prefix-behavior_implementation }{ prefix }{ entityname_abbreviated }{ suffix }|.
       WHEN  node_repository_objects-custom_entity.               "'DDLS' .
-        unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_entity }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ suffix }|.
+        unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_entity }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ suffix }|.
       WHEN node_repository_objects-custom_query_impl_class.      "'CLAS'.
         unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_query_impl_class }{ prefix }{ entityname_abbreviated }{ suffix }|.
       WHEN node_repository_objects-control_structure.            "'STRU'.
@@ -2982,10 +2995,24 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
         ELSE.
 
-          "only when the object name is not used in the bo and
-          "if it does not exist as repository object we can create a new object
+          "check if the repository object name is already used in another RAP Generator BO project
 
-          is_valid_repo_object_name = abap_true.
+          IF repo_obj_name_used_in_rap_gen(
+          EXPORTING
+            iv_type                  = CONV string( repository_object_tadir_type )
+            iv_name                  = unique_repository_object_name
+            ).
+
+            is_valid_repo_object_name = abap_false.
+
+          ELSE.
+
+            "only when the object name is not used in the bo and
+            "if it does not exist as repository object we can create a new object
+
+            is_valid_repo_object_name = abap_true.
+
+          ENDIF.
 
         ENDIF.
 
@@ -3001,9 +3028,9 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
             "root node repository objects
           WHEN root_node_repository_objects-behavior_definition_r.  "'BDEF'.
-            unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_r }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_r }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN root_node_repository_objects-behavior_definition_p.  "'BDEF'.
-            unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_p }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name = |{ namespace }{ node_object_prefix-behavior_definition_p }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN root_node_repository_objects-service_binding.        "'SRVB'.
             unique_repository_object_name = |{ namespace }{ binding }{ prefix }{ entityname_abbreviated }{ protocol_version }{ unique_hex_number }{ suffix }|.
           WHEN   root_node_repository_objects-service_definition.   "'SRVD' .
@@ -3011,17 +3038,17 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
 
             "node repository objects
           WHEN  node_repository_objects-cds_view_i.                  "'DDLS' .
-            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_i }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_i }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN  node_repository_objects-cds_view_r.                  "'DDLS' .
-            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_r }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_r }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN  node_repository_objects-cds_view_p.                  "'DDLS' .
-            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_p }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name = |{ namespace }{ node_object_prefix-cds_view_p }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN node_repository_objects-meta_data_extension.          "'DDLX'.
-            unique_repository_object_name =  |{ namespace }{ node_object_prefix-meta_data_extension }{ prefix }{ entityname_abbreviated }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name =  |{ namespace }{ node_object_prefix-meta_data_extension }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN node_repository_objects-behavior_implementation.      "'CLAS'.
             unique_repository_object_name =  |{ namespace }{ node_object_prefix-behavior_implementation }{ prefix }{ entityname_abbreviated }{ unique_hex_number }{ suffix }|.
           WHEN  node_repository_objects-custom_entity.               "'DDLS' .
-            unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_entity }{ prefix }{ entityname_abbreviated }{ node_object_suffix-transactional_processing }{ unique_hex_number }{ suffix }|.
+            unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_entity }{ prefix }{ entityname_abbreviated }{ suffix_transctional_processing }{ unique_hex_number }{ suffix }|.
           WHEN node_repository_objects-custom_query_impl_class.      "'CLAS'.
             unique_repository_object_name =  |{ namespace }{ node_object_prefix-custom_query_impl_class }{ prefix }{ entityname_abbreviated }{ unique_hex_number }{ suffix }|.
           WHEN node_repository_objects-control_structure.            "'STRU'.
@@ -5915,4 +5942,75 @@ CLASS ZDMO_CL_RAP_NODE IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.
+
+  METHOD repo_obj_name_used_in_rap_gen.
+
+    rv_repo_obj_name_used_rap_gen = abap_false.
+
+    "check repository object names used in other rap generator projects
+
+    CASE iv_type.
+      WHEN 'BDEF'.
+        SELECT SINGLE CdsRView FROM ZDMO_R_RapGeneratorBONode WHERE CdsRView = @iv_name INTO @DATA(bdef_name_is_used).
+        SELECT SINGLE CdsRView FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE CdsRView = @iv_name INTO @DATA(bdef_name_is_used_in_draft).
+        IF bdef_name_is_used IS NOT INITIAL OR bdef_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'SRVD'.
+        SELECT SINGLE ServiceDefinition FROM ZDMO_R_RapGeneratorBONode WHERE ServiceDefinition = @iv_name INTO @DATA(srvd_name_is_used).
+        SELECT SINGLE ServiceDefinition FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE Servicedefinition = @iv_name INTO @DATA(srvd_name_is_used_in_draft).
+        IF srvd_name_is_used IS NOT INITIAL OR srvd_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'SRVB'.
+        SELECT SINGLE ServiceBinding  FROM ZDMO_R_RapGeneratorBONode WHERE   ServiceBinding  = @iv_name INTO @DATA(srvb_name_is_used).
+        SELECT SINGLE ServiceDefinition FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE Servicedefinition = @iv_name INTO @DATA(srvb_name_is_used_in_draft).
+        IF srvb_name_is_used IS NOT INITIAL OR srvb_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'SMBC'.
+        SELECT SINGLE BusinessConfName FROM ZDMO_R_RapGeneratorBO WHERE     BusinessConfName  = @iv_name INTO @DATA(smbc_name_is_used).
+        SELECT SINGLE BusinessConfName FROM ZDMO_R_RAPGENERATORBODraft WHERE   BusinessConfName  = @iv_name INTO @DATA(smbc_name_is_used_in_draft).
+        IF smbc_name_is_used IS NOT INITIAL OR smbc_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+    ENDCASE.
+
+    CASE iv_type.
+      WHEN 'DDLS' .
+        SELECT SINGLE CdsRView FROM ZDMO_R_RapGeneratorBONode WHERE CdsRView = @iv_name INTO @DATA(cdsr_name_is_used).
+        SELECT SINGLE CdsRView FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE CdsRView = @iv_name INTO @DATA(cdsr_name_is_used_in_draft).
+        SELECT SINGLE CdsPView FROM ZDMO_R_RapGeneratorBONode WHERE CdsPView = @iv_name INTO @DATA(cdsp_name_is_used).
+        SELECT SINGLE CdsPView FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE CdsPView = @iv_name INTO @DATA(cdsp_name_is_used_in_draft).
+        IF cdsr_name_is_used IS NOT INITIAL OR cdsr_name_is_used_in_draft IS NOT INITIAL OR
+           cdsp_name_is_used IS NOT INITIAL OR cdsp_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'DDLX'.
+        SELECT SINGLE MdeView FROM ZDMO_R_RapGeneratorBONode WHERE MdeView = @iv_name INTO @DATA(Mde_name_is_used).
+        SELECT SINGLE MdeView FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE MdeView = @iv_name INTO @DATA(mde_name_is_used_in_draft).
+        IF Mde_name_is_used IS NOT INITIAL OR Mde_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'STRU'.
+        SELECT SINGLE ControlStructure  FROM ZDMO_R_RapGeneratorBONode WHERE ControlStructure  = @iv_name INTO @DATA(stru_name_is_used).
+        SELECT SINGLE ControlStructure  FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE ControlStructure = @iv_name INTO @DATA(stru_name_is_used_in_draft).
+        IF stru_name_is_used IS NOT INITIAL OR stru_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'CLAS'.
+        SELECT SINGLE  BehaviorImplementationClass   FROM ZDMO_R_RapGeneratorBONode WHERE  BehaviorImplementationClass   = @iv_name INTO @DATA(clas_name_is_used).
+        SELECT SINGLE  BehaviorImplementationClass   FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE  BehaviorImplementationClass  = @iv_name INTO @DATA(clas_name_is_used_in_draft).
+        IF clas_name_is_used IS NOT INITIAL OR clas_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+      WHEN 'TABL'.
+        SELECT SINGLE  DraftTableName    FROM ZDMO_R_RapGeneratorBONode WHERE  DraftTableName    = @iv_name INTO @DATA(tabl_name_is_used).
+        SELECT SINGLE  DraftTableName    FROM ZDMO_R_RAPGENERATORBONODEDraft WHERE  DraftTableName   = @iv_name INTO @DATA(tabl_name_is_used_in_draft).
+        IF tabl_name_is_used IS NOT INITIAL OR tabl_name_is_used_in_draft IS NOT INITIAL.
+          rv_repo_obj_name_used_rap_gen = abap_true.
+        ENDIF.
+    ENDCASE.
+  ENDMETHOD.
+
 ENDCLASS.

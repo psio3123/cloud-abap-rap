@@ -50,23 +50,26 @@ define root view entity ZDMO_C_RAPGENERATORBO
            JsonString,
            JsonIsValid,
            BoIsGenerated,
-           BoIsDeleted,
+           BoIsDeleted,           
            JobName,
            JobCount,
            ADTLink,
            ApplicationJobLogHandle,
            @EndUserText.label: 'Hide ADT Link'
            @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
-  virtual  HideADTLink          : abap_boolean,
+  virtual  HideADTLink            : abap_boolean,
            @EndUserText.label: 'Job Status'
            @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
-  virtual  JobStatus            : abap.char( 1 ),
+  virtual  JobStatus              : abap.char( 1 ),
            @EndUserText.label: 'Generation'
            @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
-  virtual  JobStatusText        : abap.char( 20 ),
+  virtual  JobStatusText          : abap.char( 20 ),
            @EndUserText.label: 'Criticality'
            @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
-  virtual  JobStatusCriticality : abap.int1,
+  virtual  JobStatusCriticality   : abap.int1,
+           @EndUserText.label: 'Repository objects exist'
+           @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZDMO_CL_RAP_GEN_GET_JOB_STATUS'
+  virtual  RepositoryObjectsExist : abap_boolean,
 
            _RAPGeneratorBOLog  : redirected to composition child ZDMO_C_RAPGeneratorBOLog,
            _RAPGeneratorBONode : redirected to composition child ZDMO_C_RAPGENERATORBONODE,

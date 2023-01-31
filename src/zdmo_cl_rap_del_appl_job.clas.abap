@@ -9,6 +9,13 @@ INHERITING FROM zdmo_cl_rap_generator_base
       if_apj_rt_exec_object,
       if_apj_dt_exec_object.
     METHODS constructor.
+
+    METHODS rap_gen_project_objects_exist
+      IMPORTING
+        i_rap_generator_project           TYPE zdmo_r_rapgeneratorbo
+      RETURNING
+        VALUE(r_repository_objects_exist) TYPE abap_bool.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -132,7 +139,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
+CLASS zdmo_cl_rap_del_appl_job IMPLEMENTATION.
 
 
   METHOD add_findings_to_output.
@@ -1688,4 +1695,129 @@ CLASS ZDMO_CL_RAP_DEL_APPL_JOB IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.
+
+  METHOD rap_gen_project_objects_exist.
+
+    DATA generated_repository_objects TYPE zdmo_cl_rap_generator=>t_generated_repository_objects.
+    DATA generated_repository_object TYPE zdmo_cl_rap_generator=>t_generated_repository_object.
+
+*    DATA on_prem_xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
+*    DATA xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
+*
+*    on_prem_xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+*
+*    IF on_prem_xco_lib->on_premise_branch_is_used( ) = abap_true.
+*      xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+*    ELSE.
+*      xco_lib = NEW zdmo_cl_rap_xco_cloud_lib(  ).
+*    ENDIF.
+
+    SELECT * FROM ZDMO_R_RapGeneratorBONode WHERE HeaderUUID = @i_rap_generator_project-RapNodeUUID
+                                                  INTO TABLE @DATA(rapbo_nodes).
+
+    LOOP AT rapbo_nodes INTO DATA(rapbo_node).
+      "get repository object names and types
+
+      CLEAR generated_repository_objects.
+
+      IF rapbo_node-ServiceBinding IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ServiceBinding.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_binding.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-ServiceDefinition IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ServiceDefinition.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_definition.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsRView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsRView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_r.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsPView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsPView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_p.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_p.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-meta_data_extension.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsiView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsiView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_i.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-ControlStructure IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ControlStructure.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-control_structure.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-BehaviorImplementationClass IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-BehaviorImplementationClass.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-behavior_implementation.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-DraftTableName IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-DraftTableName.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-draft_table.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      LOOP AT generated_repository_objects INTO generated_repository_object.
+
+        CASE generated_repository_object-object_type.
+
+          WHEN zdmo_cl_rap_node=>root_node_object_types-service_binding.
+            IF xco_lib->get_service_binding( CONV sxco_srvb_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>root_node_object_types-service_definition.
+            IF xco_lib->get_service_definition( CONV sxco_srvd_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r. "this checks also for behavior projection 'BDEF'
+            IF xco_lib->get_behavior_definition( CONV sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-behavior_implementation. "checks also for query implementation 'CLAS'
+            IF xco_lib->get_class( CONV  sxco_ao_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-cds_view_r. "this checks also for i- and p-views as well as for custom entities
+            IF xco_lib->get_view( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-control_structure.
+            IF xco_lib->get_structure( CONV  sxco_ad_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-draft_table.
+            IF xco_lib->get_database_table( CONV  sxco_dbt_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN  zdmo_cl_rap_node=>node_object_types-meta_data_extension.
+            IF xco_lib->get_metadata_extension( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN OTHERS.
+            "do nothing
+        ENDCASE.
+
+      ENDLOOP.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
 ENDCLASS.

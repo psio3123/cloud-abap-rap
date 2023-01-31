@@ -31,7 +31,12 @@ CLASS lhc_rapgeneratorbo DEFINITION INHERITING FROM cl_abap_behavior_handler.
       deletebo FOR MODIFY
         IMPORTING keys FOR ACTION rapgeneratorbo~deletebo RESULT result,
       generated_objects_are_deleted FOR VALIDATE ON SAVE
-        IMPORTING keys FOR rapgeneratorbo~generated_objects_are_deleted.
+        IMPORTING keys FOR rapgeneratorbo~generated_objects_are_deleted,
+      rap_gen_project_objects_exist
+        IMPORTING
+          i_rap_generator_project           TYPE zdmo_r_rapgeneratorbo
+        RETURNING
+          VALUE(r_repository_objects_exist) TYPE abap_bool.
 
 
 
@@ -189,6 +194,7 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
     ENDLOOP.
 
 
+
     MODIFY ENTITIES OF zdmo_r_rapgeneratorbo IN LOCAL MODE
     ENTITY rapgeneratorbo
       UPDATE FIELDS (
@@ -291,43 +297,106 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
       WITH CORRESPONDING #( keys )
       RESULT DATA(rapbos).
 
-    result = VALUE #( FOR rapbo IN rapbos
-                    ( %tky                   = rapbo-%tky
+    DATA rap_generator_project TYPE ZDMO_R_RapGeneratorBO.
+    DATA rap_generator_projects TYPE STANDARD TABLE OF ZDMO_R_RapGeneratorBO.
+    DATA result_line  LIKE LINE OF result  .
+*    LOOP AT keys INTO DATA(key).
+*      SELECT SINGLE * FROM ZDMO_R_RapGeneratorBO WHERE RapNodeUUID = @key-RapNodeUUID
+*      INTO @rap_generator_project.
+*      APPEND rap_generator_project TO rap_generator_projects.
+*    ENDLOOP.
 
-                      %field-packagename    = COND #( WHEN rapbo-packagename IS INITIAL
+*    rap_gen_project_objects_exist( rap_generator_project )
+
+    LOOP AT rapbos INTO DATA(rapbo).
+
+      MOVE-CORRESPONDING rapbo TO rap_generator_project.
+      DATA(rap_gen_project_objects_exist) = rap_gen_project_objects_exist( rap_generator_project ).
+
+      result_line-%tky = rapbo-%tky.
+      result_line-%field-packagename    = COND #( WHEN rapbo-packagename IS INITIAL
                                                       THEN if_abap_behv=>fc-f-mandatory
-                                                      ELSE if_abap_behv=>fc-f-read_only )
-                      %field-namespace      = COND #( WHEN rapbo-packagename IS NOT INITIAL
-                                                      THEN if_abap_behv=>fc-f-mandatory
-                                                      ELSE if_abap_behv=>fc-f-read_only )
-                      %action-edit          = COND #( WHEN rapbo-jobname IS INITIAL
-                                                      THEN if_abap_behv=>fc-o-enabled
-                                                      ELSE if_abap_behv=>fc-o-disabled )
-                      %action-createbo      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off AND
-                                                           rapbo-jobname IS INITIAL
-                                                      THEN if_abap_behv=>fc-o-enabled
-                                                      ELSE if_abap_behv=>fc-o-disabled )
-                      %action-copyProject      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off
-                                                         THEN if_abap_behv=>fc-o-enabled
-                                                         ELSE if_abap_behv=>fc-o-disabled )
-                      %field-MultiInlineEdit  = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
-                                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
-                                                         AND rapbo-DraftEnabled = abap_true
-                                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
-                                                        THEN if_abap_behv=>fc-f-unrestricted
-                                                        ELSE if_abap_behv=>fc-f-read_only )
-                      %field-CustomizingTable = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
-                                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
-                                                         AND rapbo-DraftEnabled = abap_true
-                                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
-                                                        THEN if_abap_behv=>fc-f-unrestricted
-                                                        ELSE if_abap_behv=>fc-f-read_only )
-                      %field-AddToManageBusinessConfig  = COND #( WHEN rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
-                                                                  THEN if_abap_behv=>fc-f-unrestricted
-                                                                  ELSE if_abap_behv=>fc-f-read_only )
+                                                      ELSE if_abap_behv=>fc-f-read_only ).
+      result_line-%field-namespace      = COND #( WHEN rapbo-packagename IS NOT INITIAL
+                                                       THEN if_abap_behv=>fc-f-mandatory
+                                                       ELSE if_abap_behv=>fc-f-read_only ).
+      IF rap_gen_project_objects_exist = abap_true .
+        result_line-%action-edit  = if_abap_behv=>fc-o-disabled.
+      ELSE.
+        IF  rapbo-jobname IS NOT INITIAL.
+          result_line-%action-edit  = if_abap_behv=>fc-o-disabled.
+        ELSE.
+          result_line-%action-edit  =  if_abap_behv=>fc-o-enabled.
+        ENDIF.
+      ENDIF.
+
+*      result_line-%action-edit          = COND #( WHEN rapbo-jobname IS INITIAL
+*                                      THEN if_abap_behv=>fc-o-enabled
+*                                      ELSE if_abap_behv=>fc-o-disabled ).
+
+      result_line-%action-createbo      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off AND
+                                           rapbo-jobname IS INITIAL
+                                      THEN if_abap_behv=>fc-o-enabled
+                                      ELSE if_abap_behv=>fc-o-disabled ).
+      result_line-%action-copyProject      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off
+                                         THEN if_abap_behv=>fc-o-enabled
+                                         ELSE if_abap_behv=>fc-o-disabled ).
+      result_line-%field-MultiInlineEdit  = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
+                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
+                                         AND rapbo-DraftEnabled = abap_true
+                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+                                        THEN if_abap_behv=>fc-f-unrestricted
+                                        ELSE if_abap_behv=>fc-f-read_only ).
+      result_line-%field-CustomizingTable = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
+                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
+                                         AND rapbo-DraftEnabled = abap_true
+                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+                                        THEN if_abap_behv=>fc-f-unrestricted
+                                        ELSE if_abap_behv=>fc-f-read_only ).
+      result_line-%field-AddToManageBusinessConfig  = COND #( WHEN rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+                                                  THEN if_abap_behv=>fc-f-unrestricted
+                                                  ELSE if_abap_behv=>fc-f-read_only ).
+      APPEND result_line TO result.
+    ENDLOOP.
 
 
-                                                         ) ).
+*    result = VALUE #( FOR rapbo IN rapbos
+*                    ( %tky                   = rapbo-%tky
+*
+*                      %field-packagename    = COND #( WHEN rapbo-packagename IS INITIAL
+*                                                      THEN if_abap_behv=>fc-f-mandatory
+*                                                      ELSE if_abap_behv=>fc-f-read_only )
+*                      %field-namespace      = COND #( WHEN rapbo-packagename IS NOT INITIAL
+*                                                      THEN if_abap_behv=>fc-f-mandatory
+*                                                      ELSE if_abap_behv=>fc-f-read_only )
+*                      %action-edit          = COND #( WHEN rapbo-jobname IS INITIAL
+*                                                      THEN if_abap_behv=>fc-o-enabled
+*                                                      ELSE if_abap_behv=>fc-o-disabled )
+*                      %action-createbo      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off AND
+*                                                           rapbo-jobname IS INITIAL
+*                                                      THEN if_abap_behv=>fc-o-enabled
+*                                                      ELSE if_abap_behv=>fc-o-disabled )
+*                      %action-copyProject      = COND #( WHEN rapbo-%is_draft = if_abap_behv=>mk-off
+*                                                         THEN if_abap_behv=>fc-o-enabled
+*                                                         ELSE if_abap_behv=>fc-o-disabled )
+*                      %field-MultiInlineEdit  = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
+*                                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
+*                                                         AND rapbo-DraftEnabled = abap_true
+*                                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+*                                                        THEN if_abap_behv=>fc-f-unrestricted
+*                                                        ELSE if_abap_behv=>fc-f-read_only )
+*                      %field-CustomizingTable = COND #( WHEN rapbo-ImplementationType = zdmo_cl_rap_node=>implementation_type-managed_semantic
+*                                                         AND rapbo-DataSourceType = zdmo_cl_rap_node=>data_source_types-table
+*                                                         AND rapbo-DraftEnabled = abap_true
+*                                                         AND rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+*                                                        THEN if_abap_behv=>fc-f-unrestricted
+*                                                        ELSE if_abap_behv=>fc-f-read_only )
+*                      %field-AddToManageBusinessConfig  = COND #( WHEN rapbo-BindingType = zdmo_cl_rap_node=>binding_type_name-odata_v4_ui
+*                                                                  THEN if_abap_behv=>fc-f-unrestricted
+*                                                                  ELSE if_abap_behv=>fc-f-read_only )
+*
+*
+*                                                         ) ).
 
   ENDMETHOD.
 
@@ -1190,26 +1259,6 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
     DATA rap_generator_project TYPE ZDMO_R_RapGeneratorBO.
     DATA rap_generator_projects TYPE STANDARD TABLE OF ZDMO_R_RapGeneratorBO.
 
-    DATA on_prem_xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
-    DATA xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
-
-    on_prem_xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
-
-    IF on_prem_xco_lib->on_premise_branch_is_used( ) = abap_true.
-      xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
-    ELSE.
-      xco_lib = NEW zdmo_cl_rap_xco_cloud_lib(  ).
-    ENDIF.
-
-**    " Get current field values
-*    READ ENTITIES OF zdmo_r_rapgeneratorbo IN LOCAL MODE
-*    ENTITY rapgeneratorbo
-*      ALL FIELDS
-*      WITH
-**      WITH VALUE #( ( %tky = keys-%tky ) )
-*       CORRESPONDING #( keys )
-*      RESULT DATA(rap_generator_projects).
-
     LOOP AT keys INTO DATA(key).
       SELECT SINGLE * FROM ZDMO_R_RapGeneratorBO WHERE RapNodeUUID = @key-RapNodeUUID
       INTO @rap_generator_project.
@@ -1228,113 +1277,7 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
 *              WITH VALUE #( ( %tky = rapbo-%tky ) )
 *              RESULT DATA(rapbo_nodes).
 
-      SELECT * FROM ZDMO_R_RapGeneratorBONode WHERE HeaderUUID = @rap_generator_project-RapNodeUUID
-                                                    INTO TABLE @DATA(rapbo_nodes).
-
-      LOOP AT rapbo_nodes INTO DATA(rapbo_node).
-        "get repository object names and types
-
-        CLEAR generated_repository_objects.
-
-        IF rapbo_node-ServiceBinding IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-ServiceBinding.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_binding.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-ServiceDefinition IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-ServiceDefinition.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_definition.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-CdsRView IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-CdsRView.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r.
-          APPEND generated_repository_object TO generated_repository_objects.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_r.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-CdsPView IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-CdsPView.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_p.
-          APPEND generated_repository_object TO generated_repository_objects.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_p.
-          APPEND generated_repository_object TO generated_repository_objects.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-meta_data_extension.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-CdsiView IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-CdsiView.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_i.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-ControlStructure IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-ControlStructure.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-control_structure.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-BehaviorImplementationClass IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-BehaviorImplementationClass.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-behavior_implementation.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-        IF rapbo_node-DraftTableName IS NOT INITIAL.
-          generated_repository_object-object_name = rapbo_node-DraftTableName.
-          generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-draft_table.
-          APPEND generated_repository_object TO generated_repository_objects.
-        ENDIF.
-
-
-
-        LOOP AT generated_repository_objects INTO generated_repository_object.
-
-          CASE generated_repository_object-object_type.
-
-            WHEN zdmo_cl_rap_node=>root_node_object_types-service_binding.
-              IF xco_lib->get_service_binding( CONV sxco_srvb_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>root_node_object_types-service_definition.
-              IF xco_lib->get_service_definition( CONV sxco_srvd_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r. "this checks also for behavior projection 'BDEF'
-              IF xco_lib->get_behavior_definition( CONV sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>node_object_types-behavior_implementation. "checks also for query implementation 'CLAS'
-              IF xco_lib->get_class( CONV  sxco_ao_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>node_object_types-cds_view_r. "this checks also for i- and p-views as well as for custom entities
-              IF xco_lib->get_view( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>node_object_types-control_structure.
-              IF xco_lib->get_structure( CONV  sxco_ad_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN zdmo_cl_rap_node=>node_object_types-draft_table.
-              IF xco_lib->get_database_table( CONV  sxco_dbt_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN  zdmo_cl_rap_node=>node_object_types-meta_data_extension.
-              IF xco_lib->get_metadata_extension( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
-                repository_objects_exist = abap_true.
-              ENDIF.
-            WHEN OTHERS.
-              "do nothing
-          ENDCASE.
-
-        ENDLOOP.
-
-      ENDLOOP.
+      repository_objects_exist = rap_gen_project_objects_exist( rap_generator_project ).
 
       IF repository_objects_exist = abap_true.
         APPEND VALUE #(  rapnodeuuid  = rap_generator_project-RapNodeUUID )
@@ -1351,6 +1294,131 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
     ENDLOOP.
 
     DATA(a) = 17.
+
+  ENDMETHOD.
+
+
+  METHOD rap_gen_project_objects_exist.
+
+    DATA generated_repository_objects TYPE zdmo_cl_rap_generator=>t_generated_repository_objects.
+    DATA generated_repository_object TYPE zdmo_cl_rap_generator=>t_generated_repository_object.
+
+    DATA on_prem_xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
+    DATA xco_lib  TYPE REF TO zdmo_cl_rap_xco_lib.
+
+    on_prem_xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+
+    IF on_prem_xco_lib->on_premise_branch_is_used( ) = abap_true.
+      xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+    ELSE.
+      xco_lib = NEW zdmo_cl_rap_xco_cloud_lib(  ).
+    ENDIF.
+
+    SELECT * FROM ZDMO_R_RapGeneratorBONode WHERE HeaderUUID = @i_rap_generator_project-RapNodeUUID
+                                                  INTO TABLE @DATA(rapbo_nodes).
+
+    LOOP AT rapbo_nodes INTO DATA(rapbo_node).
+      "get repository object names and types
+
+      CLEAR generated_repository_objects.
+
+      IF rapbo_node-ServiceBinding IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ServiceBinding.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_binding.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-ServiceDefinition IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ServiceDefinition.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-service_definition.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsRView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsRView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_r.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsPView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsPView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>root_node_object_types-behavior_definition_p.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_p.
+        APPEND generated_repository_object TO generated_repository_objects.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-meta_data_extension.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-CdsiView IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-CdsiView.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-cds_view_i.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-ControlStructure IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-ControlStructure.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-control_structure.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-BehaviorImplementationClass IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-BehaviorImplementationClass.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-behavior_implementation.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      IF rapbo_node-DraftTableName IS NOT INITIAL.
+        generated_repository_object-object_name = rapbo_node-DraftTableName.
+        generated_repository_object-object_type = zdmo_cl_rap_node=>node_object_types-draft_table.
+        APPEND generated_repository_object TO generated_repository_objects.
+      ENDIF.
+
+      LOOP AT generated_repository_objects INTO generated_repository_object.
+
+        CASE generated_repository_object-object_type.
+
+          WHEN zdmo_cl_rap_node=>root_node_object_types-service_binding.
+            IF xco_lib->get_service_binding( CONV sxco_srvb_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>root_node_object_types-service_definition.
+            IF xco_lib->get_service_definition( CONV sxco_srvd_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>root_node_object_types-behavior_definition_r. "this checks also for behavior projection 'BDEF'
+            IF xco_lib->get_behavior_definition( CONV sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-behavior_implementation. "checks also for query implementation 'CLAS'
+            IF xco_lib->get_class( CONV  sxco_ao_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-cds_view_r. "this checks also for i- and p-views as well as for custom entities
+            IF xco_lib->get_view( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-control_structure.
+            IF xco_lib->get_structure( CONV  sxco_ad_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN zdmo_cl_rap_node=>node_object_types-draft_table.
+            IF xco_lib->get_database_table( CONV  sxco_dbt_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN  zdmo_cl_rap_node=>node_object_types-meta_data_extension.
+            IF xco_lib->get_metadata_extension( CONV  sxco_cds_object_name(  generated_repository_object-object_name ) )->if_xco_ar_object~exists( ) = abap_true.
+              r_repository_objects_exist = abap_true.
+            ENDIF.
+          WHEN OTHERS.
+            "do nothing
+        ENDCASE.
+
+      ENDLOOP.
+
+    ENDLOOP.
 
   ENDMETHOD.
 

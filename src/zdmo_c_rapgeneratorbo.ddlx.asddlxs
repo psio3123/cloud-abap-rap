@@ -125,31 +125,31 @@ annotate view ZDMO_C_RAPGENERATORBO with
   //    }
 
       ,
-  
+
        {
         id: 'idApplicationLogItem',
-//        type: #PRESENTATIONVARIANT_REFERENCE ,
+  //        type: #PRESENTATIONVARIANT_REFERENCE ,
          type: #LINEITEM_REFERENCE,
         label: 'Application Log',
         position: 25 ,
-//        targetQualifier: 'pVariant',
-  
+  //        targetQualifier: 'pVariant',
+
         targetElement: '_RAPGeneratorBOLog'
       }
- 
-//        ,
-//
-//     {
-//     purpose: #STANDARD,
-//      id: 'idApplicationLogItem2',
-//      type: #PRESENTATIONVARIANT_REFERENCE,
-//      label: 'Application Log items',
-//      position: 25 ,
-//      targetQualifier: 'ChildSP',
-//  //      targetQualifier: 'Facet3',
-//
-//      targetElement: '_ApplicationLog'
-//    }
+
+  //        ,
+  //
+  //     {
+  //     purpose: #STANDARD,
+  //      id: 'idApplicationLogItem2',
+  //      type: #PRESENTATIONVARIANT_REFERENCE,
+  //      label: 'Application Log items',
+  //      position: 25 ,
+  //      targetQualifier: 'ChildSP',
+  //  //      targetQualifier: 'Facet3',
+  //
+  //      targetElement: '_ApplicationLog'
+  //    }
   // ,
   //
   //     {
@@ -193,7 +193,7 @@ annotate view ZDMO_C_RAPGENERATORBO with
       {  type: #FOR_ACTION, dataAction: 'copyProject', label: 'Copy Project' }
     ,
     {  type: #FOR_ACTION, dataAction: 'deleteBO', label: 'Delete repository objects' }
-    
+
     ]
 
   BoName;
@@ -206,16 +206,7 @@ annotate view ZDMO_C_RAPGENERATORBO with
                              hidden: #(HideADTLink) }
                            ] }
 
-  @UI.lineItem: [ {
-   position: 26 ,
-   importance: #HIGH,
-   label: 'ADT Link'
-   ,
-                             type: #WITH_URL,
-                             url: 'ADTLink',
-                             hidden: #(HideADTLink) }
-
-   ]
+  
 
   ADTLink;
 
@@ -303,6 +294,16 @@ annotate view ZDMO_C_RAPGENERATORBO with
                               label: 'Suffix'} ] }
   Suffix;
 
+  @UI.lineItem: [ {
+      position: 110 ,
+      importance: #HIGH,
+      label: 'Repository objects exist'
+    } ]
+  @UI: { fieldGroup:     [ { qualifier: 'Fieldgroup1',
+                       position: 40 ,
+                       label: 'Repository Objects Exist'} ] }
+  RepositoryObjectsExist;
+
   @UI: {      fieldGroup:     [ { qualifier: 'Fieldgroup3',
                                position: 110 ,
                                label: 'Prefix'} ] }
@@ -380,45 +381,16 @@ annotate view ZDMO_C_RAPGENERATORBO with
   } ]
   @UI: { fieldGroup:     [ { qualifier: 'Fieldgroup1',
                          position: 40 ,
-                         label: 'Generation Status',
+                         label: 'Job Status',
                          criticality: 'JobStatusCriticality'} ] }
   @UI.dataPoint: {title: 'Generation Job Status', targetValueElement: 'JobStatusText', criticality: 'JobStatusCriticality',
   criticalityRepresentation: #WITH_ICON}
   JobStatusText;
 
-  @UI.lineItem: [ {
-  position: 240 ,
-  importance: #HIGH,
-  label: 'Generated' }
-  ]
-  BoIsGenerated;
-  @UI.lineItem: [ {
-  position: 250 ,
-  importance: #HIGH,
-  label: 'Deleted' }
-  ]
+  @UI.hidden: true
   BoIsDeleted;
 
 
-  //   @UI.facet: [{
-  //    id: 'idApplicationLogItem',
-  //  //    parentId: 'idCollection',
-  //    type: #LINEITEM_REFERENCE,
-  //    label: 'Application Log',
-  //    position: 25 ,
-  //    targetElement: '_ApplicationLog'
-  //    }]
 
-  @UI.lineItem: [ {
-   position: 170 ,
-   importance: #HIGH,
-   label: 'Application Log Handle'
-  } ]
-  @UI.identification:  [ {
-   position: 170 ,
-   importance: #HIGH,
-   label: 'Application Log Handle'
-  } ]
-  ApplicationJobLogHandle;
 
 }
