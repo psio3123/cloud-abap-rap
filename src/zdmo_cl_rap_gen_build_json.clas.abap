@@ -24,6 +24,8 @@ CLASS zdmo_cl_rap_gen_build_json DEFINITION
     DATA rapgen_node TYPE tt_rapgen_node.
     DATA rapgen_bo TYPE tt_rapgen_bo.
 
+    DATA run_via_f9 TYPE abap_boolean VALUE abap_false.
+
     METHODS constructor
       IMPORTING iv_bo_uuid     TYPE ZDMO_rapgen_bo-rap_node_uuid OPTIONAL
                 it_rapgen_node TYPE tt_rapgen_node OPTIONAL
@@ -63,7 +65,7 @@ ENDCLASS.
 
 
 
-CLASS ZDMO_CL_RAP_GEN_BUILD_JSON IMPLEMENTATION.
+CLASS zdmo_cl_rap_gen_build_json IMPLEMENTATION.
 
 
   METHOD constructor.
@@ -81,26 +83,13 @@ CLASS ZDMO_CL_RAP_GEN_BUILD_JSON IMPLEMENTATION.
 
     DATA(lo_json_data_builder) = xco_cp_json=>data->builder( ).
 
-*    SELECT SINGLE * FROM ZDMO_rapgen_bo INTO @rap_bo
-*    WHERE rap_node_uuid = @rap_bo_uuid.
-
-*    SELECT SINGLE namespace , p  FROM @rapgen_bo AS bo
-*    WHERE RapNodeUUID = @rap_bo_uuid
-*    INTO @rap_bo.
-
-    rap_bo = rapgen_bo[ rapnodeuuid = rap_bo_uuid ].
-
+    IF line_exists( rapgen_bo[ rapnodeuuid = rap_bo_uuid ] ).
+      rap_bo = rapgen_bo[ rapnodeuuid = rap_bo_uuid ].
+    ELSE.
+      EXIT.
+    ENDIF.
 
     IF sy-subrc = 0.
-
-*      SELECT SINGLE * FROM ZDMO_rapgen_node
-*                     INTO @DATA(root_node)
-*                     WHERE    is_root_node = @abap_true AND
-*                     header_uuid = @rap_bo_uuid.
-*      SELECT * FROM @rapgen_node AS nodes
-*                  WHERE IsRootNode = @abap_true
-*                    AND HeaderUUID  = @rap_bo_uuid INTO TABLE @DATA(root_node).
-
 
       DATA(root_node)      =   rapgen_node[ isrootnode = abap_true headeruuid  = rap_bo_uuid  ].
 
@@ -216,13 +205,67 @@ CLASS ZDMO_CL_RAP_GEN_BUILD_JSON IMPLEMENTATION.
     io_json->add_member( 'metadataExtensionView' )->add_string( CONV string( current_node-mdeview ) ).
     io_json->add_member( 'behaviorImplementationClass' )->add_string( CONV string( current_node-behaviorimplementationclass ) ).
 *    IF current_node-isrootnode = abap_true.
-      io_json->add_member( 'serviceDefinition' )->add_string( CONV string( current_node-servicedefinition ) ).
-      io_json->add_member( 'serviceBinding' )->add_string( CONV string( current_node-servicebinding ) ).
+    io_json->add_member( 'serviceDefinition' )->add_string( CONV string( current_node-servicedefinition ) ).
+    io_json->add_member( 'serviceBinding' )->add_string( CONV string( current_node-servicebinding ) ).
 *    ENDIF.
     io_json->add_member( 'controlStructure' )->add_string( CONV string( current_node-controlstructure ) ).
     io_json->add_member( 'customQueryImplementationClass' )->add_string( CONV string( current_node-queryimplementationclass ) ).
 
+*    IF run_via_f9 = abap_true.
 
+    IF line_exists( rapgen_bo[ rapnodeuuid = rap_bo_uuid ] ).
+      DATA(root_bo) = rapgen_bo[ rapnodeuuid = rap_bo_uuid ].
+    ELSE.
+      EXIT.
+    ENDIF.
+
+    DATA test_node TYPE REF TO zdmo_cl_rap_node.
+    DATA xco_lib TYPE REF TO zdmo_cl_rap_xco_lib.
+    DATA xco_on_prem_lib TYPE REF TO ZDMO_cl_rap_xco_on_prem_lib.
+    xco_on_prem_lib = NEW ZDMO_cl_rap_xco_on_prem_lib(  ).
+
+    IF xco_on_prem_lib->on_premise_branch_is_used(  ).
+      xco_lib = NEW ZDMO_cl_rap_xco_on_prem_lib(  ).
+    ELSE.
+      xco_lib = NEW ZDMO_cl_rap_xco_cloud_lib(  ).
+    ENDIF.
+
+    test_node = NEW ZDMO_cl_rap_node(  ).
+    test_node->set_xco_lib( xco_lib ).
+
+    test_node->set_data_source_type( CONV #( root_bo-DataSourceType ) ).
+    test_node->set_data_source( CONV #( current_node-DataSource ) ).
+
+* create json entries for table mapping
+*
+
+* "mapping": [
+*      {
+*        "dbtable_field": "TRAVEL_ID",
+*        "cds_view_field": "TravelID"
+*      },
+*      {
+*        "dbtable_field": "AGENCY_ID",
+*        "cds_view_field": "AgencyID"
+*      },
+*      {
+*        "dbtable_field": "CUSTOMER_ID",
+*        "cds_view_field": "CustomerID"
+*      }
+*    ]
+
+    io_json->add_member( 'mapping' )->begin_array( ).
+    "loop über die Felder
+    LOOP AT test_node->lt_fields INTO DATA(data_source_field).
+      io_json->begin_object( ).
+      io_json->add_member( 'dbtable_field' )->add_string( CONV string( data_source_field-name ) ).
+      io_json->add_member( 'cds_view_field' )->add_string( CONV string( data_source_field-cds_view_field  ) ).
+      io_json->end_object( ).
+      "end_loop
+    ENDLOOP.
+    io_json->end_array(  ).
+
+*    ENDIF.
 
     DATA(child_entity_keys) = get_child_entity_keys( current_node ).
 
@@ -274,7 +317,35 @@ CLASS ZDMO_CL_RAP_GEN_BUILD_JSON IMPLEMENTATION.
 
   METHOD main.
 
-    rap_bo_uuid  = '42010AEF3E3F1EDC9782A6BDFB939EFC'.
+    run_via_f9 = abap_true.
+
+    DATA(bo_name) = 'ZR_SalesOrderTP_900'.
+
+    SELECT SINGLE rapnodeuuid  FROM ZDMO_R_RapGeneratorBO WHERE boname = @bo_name INTO @rap_bo_uuid.
+
+    IF sy-subrc <> 0.
+      out->write( |rap bo { bo_name } not found. Stop processing.| ).
+    ELSE.
+      out->write( |rap bo { bo_name } hass the following uuid { rap_bo_uuid }.|  ).
+    ENDIF.
+
+
+    READ ENTITIES OF zdmo_r_rapgeneratorbo
+    ENTITY rapgeneratorbo
+    ALL FIELDS WITH VALUE #( ( RapNodeUUID = rap_bo_uuid ) )
+    RESULT DATA(rapbos).
+
+    LOOP AT rapbos ASSIGNING FIELD-SYMBOL(<rapbo>).
+      READ ENTITIES OF zdmo_r_rapgeneratorbo
+        ENTITY rapgeneratorbo BY \_rapgeneratorbonode
+        ALL FIELDS
+        WITH VALUE #( ( RapNodeUUID = <rapbo>-RapNodeUUID ) )
+        RESULT DATA(rapnodes).
+    ENDLOOP.
+
+    MOVE-CORRESPONDING rapbos TO rapgen_bo.
+    MOVE-CORRESPONDING rapnodes TO rapgen_node.
+
     DATA(json_string) = create_json(  ).
     out->write( json_string ).
 

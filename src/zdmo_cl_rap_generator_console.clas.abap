@@ -19,74 +19,7 @@ CLASS ZDMO_CL_RAP_GENERATOR_CONSOLE IMPLEMENTATION.
 
 
   METHOD get_json_string.
-    json_string = '{' && |\r\n|  &&
-                  '"namespace":"Z",' && |\r\n|  &&
-                  '"package":"ZTEST_RAP_GENERATOR_ONE_CLASS",' && |\r\n|  &&
-                  '"dataSourceType":"table",' && |\r\n|  &&
-                  '"bindingType":"odata_v4_ui",' && |\r\n|  &&
-                  '"implementationType":"managed_uuid",' && |\r\n|  &&
-                  '"prefix":"",' && |\r\n|  &&
-                  '"suffix":"_LOG5",' && |\r\n|  &&
-                  '"draftEnabled":true,' && |\r\n|  &&
-                  '"multiInlineEdit":false,' && |\r\n|  &&
-                  '"isCustomizingTable":false,' && |\r\n|  &&
-                  '"addBusinessConfigurationRegistration":false,' && |\r\n|  &&
-                  '"transportRequest":"T22K900006",' && |\r\n|  &&
-                  '"hierarchy":' && |\r\n|  &&
-                  '{' && |\r\n|  &&
-                  ' "entityname":"SalesOrder",' && |\r\n|  &&
-                  ' "dataSource":"ZDMO_UUID_HEADER",' && |\r\n|  &&
-                  ' "objectid":"SALESORDER_ID",' && |\r\n|  &&
-                  ' "uuid":"HEADER_UUID",' && |\r\n|  &&
-                  ' "parentUUID":"",' && |\r\n|  &&
-                  ' "rootUUID":"",' && |\r\n|  &&
-                  ' "etagMaster":"LOCAL_LAST_CHANGED_AT",' && |\r\n|  &&
-                  ' "totalEtag":"LAST_CHANGED_AT",' && |\r\n|  &&
-                  ' "lastChangedAt":"LAST_CHANGED_AT",' && |\r\n|  &&
-                  ' "lastChangedBy":"LAST_CHANGED_BY",' && |\r\n|  &&
-                  ' "localInstanceLastChangedAt":"LOCAL_LAST_CHANGED_AT",' && |\r\n|  &&
-                  ' "createdAt":"CREATED_AT",' && |\r\n|  &&
-                  ' "createdBy":"CREATED_BY",' && |\r\n|  &&
-                  ' "draftTable":"ZSALESOR00D_LOG5",' && |\r\n|  &&
-                  ' "cdsInterfaceView":"ZI_SalesOrderTP_LOG5",' && |\r\n|  &&
-                  ' "cdsRestrictedReuseView":"ZR_SalesOrderTP_LOG5",' && |\r\n|  &&
-                  ' "cdsProjectionView":"ZC_SalesOrderTP_LOG5",' && |\r\n|  &&
-                  ' "metadataExtensionView":"ZC_SalesOrder_LOG5",' && |\r\n|  &&
-                  ' "behaviorImplementationClass":"ZBP_R_SalesOrder_LOG5",' && |\r\n|  &&
-                  ' "serviceDefinition":"ZSalesOrder_LOG5",' && |\r\n|  &&
-                  ' "serviceBinding":"ZUI_SalesOrder_O4_LOG5",' && |\r\n|  &&
-                  ' "controlStructure":"",' && |\r\n|  &&
-                  ' "customQueryImplementationClass":"",' && |\r\n|  &&
-                  ' "Children":' && |\r\n|  &&
-                  ' [' && |\r\n|  &&
-                  '  {' && |\r\n|  &&
-                  '   "entityname":"Item",' && |\r\n|  &&
-                  '   "dataSource":"ZDMO_UUID_ITEM",' && |\r\n|  &&
-                  '   "objectid":"ITEM_ID",' && |\r\n|  &&
-                  '   "uuid":"ITEM_UUID",' && |\r\n|  &&
-                  '   "parentUUID":"PARENT_UUID",' && |\r\n|  &&
-                  '   "rootUUID":"",' && |\r\n|  &&
-                  '   "etagMaster":"LOCAL_LAST_CHANGED_AT",' && |\r\n|  &&
-                  '   "totalEtag":"",' && |\r\n|  &&
-                  '   "lastChangedAt":"",' && |\r\n|  &&
-                  '   "lastChangedBy":"",' && |\r\n|  &&
-                  '   "localInstanceLastChangedAt":"LOCAL_LAST_CHANGED_AT",' && |\r\n|  &&
-                  '   "createdAt":"",' && |\r\n|  &&
-                  '   "createdBy":"",' && |\r\n|  &&
-                  '   "draftTable":"ZITEM00D_LOG5",' && |\r\n|  &&
-                  '   "cdsInterfaceView":"ZI_ItemTP_LOG5",' && |\r\n|  &&
-                  '   "cdsRestrictedReuseView":"ZR_ItemTP_LOG5",' && |\r\n|  &&
-                  '   "cdsProjectionView":"ZC_ItemTP_LOG5",' && |\r\n|  &&
-                  '   "metadataExtensionView":"ZC_Item_LOG5",' && |\r\n|  &&
-                  '   "behaviorImplementationClass":"ZBP_R_Item_LOG5",' && |\r\n|  &&
-                  '   "serviceDefinition":"",' && |\r\n|  &&
-                  '   "serviceBinding":"",' && |\r\n|  &&
-                  '   "controlStructure":"",' && |\r\n|  &&
-                  '   "customQueryImplementationClass":""' && |\r\n|  &&
-                  '  }' && |\r\n|  &&
-                  ' ]' && |\r\n|  &&
-                  '}' && |\r\n|  &&
-                  '} ' .
+    json_string = '<enter your json string here' .
   ENDMETHOD.
 
 

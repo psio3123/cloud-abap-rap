@@ -707,13 +707,13 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
     DATA update TYPE TABLE FOR UPDATE zdmo_r_rapgeneratorbo\\rapgeneratorbo.
     DATA update_line TYPE STRUCTURE FOR UPDATE zdmo_r_rapgeneratorbo\\rapgeneratorbo .
 
-    READ ENTITIES OF zdmo_r_rapgeneratorbo IN LOCAL MODE
+    READ ENTITIES OF zdmo_r_rapgeneratorbo in LOCAL MODE
        ENTITY rapgeneratorbo
        ALL FIELDS WITH CORRESPONDING #( keys )
        RESULT DATA(rapbos).
 
     LOOP AT rapbos ASSIGNING FIELD-SYMBOL(<rapbo>).
-      READ ENTITIES OF zdmo_r_rapgeneratorbo IN LOCAL MODE
+      READ ENTITIES OF zdmo_r_rapgeneratorbo in LOCAL MODE
         ENTITY rapgeneratorbo BY \_rapgeneratorbonode
         ALL FIELDS
         WITH VALUE #( ( %tky = <rapbo>-%tky ) )
