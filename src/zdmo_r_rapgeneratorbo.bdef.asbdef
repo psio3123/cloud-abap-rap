@@ -24,7 +24,7 @@ authorization master ( global )
   static action createBOandRootNode parameter ZDMO_i_rap_gen_param_rapbonode result [1] $self;
 
   //  factory action copyProject [1]; //result [1] $self;
-  action ( features : instance ) copyProject result [1] $self;
+  action ( features : instance ) copyProject parameter ZDMO_I_RAP_GEN_PARAM_COPY_PROJ result [1] $self;
   action ( features : instance ) createBO result [1] $self;
   action ( features : instance ) deleteBO result [1] $self;
 

@@ -778,6 +778,40 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
     "only copy projects that are not in draft mode
     CHECK rapbos[ 1 ]-%is_draft = if_abap_behv=>mk-off.
 
+    "Get package name selected by the user
+    DATA(selected_packagename) = keys[ 1 ]-%param-packagename.
+
+
+    DATA xco_lib TYPE REF TO zdmo_cl_rap_xco_lib.
+    DATA(xco_on_prem_library) = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+
+    IF xco_on_prem_library->on_premise_branch_is_used(  ) = abap_true.
+      xco_lib = NEW zdmo_cl_rap_xco_on_prem_lib(  ).
+    ELSE.
+      xco_lib = NEW zdmo_cl_rap_xco_cloud_lib(  ).
+    ENDIF.
+
+    DATA(selected_package_exist) = xco_lib->get_package( selected_packagename )->exists(  ).
+
+    IF selected_package_exist = abap_false.
+
+      APPEND VALUE #( %tky = rapbos[ 1 ]-%tky )
+                       TO failed-rapgeneratorbo.
+
+      "Set message
+      APPEND VALUE #( %tky = rapbos[ 1 ]-%tky
+                      %element-jsonstring = if_abap_behv=>mk-on
+                      %msg = new_message( id       = 'ZDMO_CM_RAP_GEN_MSG'
+                                          number   = 014
+                                          severity = if_abap_behv_message=>severity-error
+                                          v1       =  selected_packagename
+                                   )
+                     )
+             TO reported-rapgeneratorbo.
+      RETURN.
+
+    ENDIF.
+
     LOOP AT rapbos INTO DATA(rapbo).
 
       READ ENTITIES OF zdmo_r_rapgeneratorbo IN LOCAL MODE
@@ -800,7 +834,8 @@ CLASS lhc_rapgeneratorbo IMPLEMENTATION.
             FROM VALUE #( (
             %cid = 'ROOT1'
             %param-entity_name = root_node-EntityName
-            %param-package_name = rapbos[ 1 ]-PackageName
+            %param-package_name =  selected_packagename
+*            %param-package_name = rapbos[ 1 ]-PackageName
             ) )
                " check result
         MAPPED   mapped
